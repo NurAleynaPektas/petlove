@@ -1,0 +1,63 @@
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px;
+  background: var(--white);
+  position: relative;
+}
+
+.logo {
+  font-weight: 700;
+  font-size: 20px;
+}
+
+.burger {
+  background: none;
+  border: none;
+  font-size: 24px;
+  cursor: pointer;
+}
+
+/* overlay */
+.overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.4);
+  z-index: 20;
+}
+
+/* slide-in menu */
+.menu {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 260px;
+  height: 100%;
+  background: var(--white);
+  padding: 16px;
+}
+
+.close {
+  background: none;
+  border: none;
+  font-size: 20px;
+  cursor: pointer;
+}
+.nav {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  margin-top: 24px;
+}
+
+.link {
+  font-size: 18px;
+  color: var(--text);
+}
+
+.active {
+  font-size: 18px;
+  color: var(--accent);
+  font-weight: 600;
+}

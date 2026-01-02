@@ -1,0 +1,13 @@
+:root {
+  --text: #262626;
+  --accent: #F6B83D;
+  --bg-soft: #FFF4DF;
+  --white: #FFFFFF;
+}
+
+body {
+  margin: 0;
+  font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+  color: var(--text);
+  background: var(--bg-soft);
+}
