@@ -1,6 +1,9 @@
 import { Routes, Route, Navigate } from "react-router-dom";
 import MainLayout from "./components/layout/MainLayout";
 
+import Login from "./pages/Login";
+import Register from "./pages/Register";
+
 export default function App() {
   return (
     <Routes>
@@ -10,8 +13,9 @@ export default function App() {
         <Route path="/news" element={<h1>News</h1>} />
         <Route path="/notices" element={<h1>Notices</h1>} />
         <Route path="/friends" element={<h1>Friends</h1>} />
-        <Route path="/login" element={<h1>Login</h1>} />
-        <Route path="/register" element={<h1>Register</h1>} />
+        <Route path="/login" element={<Login />} />
+        <Route path="/register" element={<Register />} />
+
         <Route path="/profile" element={<h1>Profile</h1>} />
         <Route path="/add-pet" element={<h1>Add Pet</h1>} />
       </Route>

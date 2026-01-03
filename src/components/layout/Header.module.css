@@ -2,9 +2,9 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
+
   padding: 16px;
   background: var(--white);
-  position: relative;
 }
 
 .logo {
@@ -27,7 +27,7 @@
   z-index: 20;
 }
 
-/* slide-in menu */
+/* menu panel */
 .menu {
   position: absolute;
   top: 0;
@@ -44,11 +44,20 @@
   font-size: 20px;
   cursor: pointer;
 }
+
+/* nav links */
 .nav {
   display: flex;
   flex-direction: column;
   gap: 16px;
   margin-top: 24px;
+}
+
+.auth {
+  margin-top: 32px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
 }
 
 .link {
