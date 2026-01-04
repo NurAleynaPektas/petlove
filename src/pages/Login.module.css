@@ -160,7 +160,9 @@
   }
 
   .formBox {
-    max-width: 420px;
+    padding:  50px 150px ;
+    border-radius: 48px ;
+    border: 1px solid rgba(38, 38, 38, 0.2);
     margin: 0 auto;
   }
 }
