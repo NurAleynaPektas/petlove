@@ -2,14 +2,89 @@
   padding: 24px 16px;
 }
 
-.title {
-  margin: 0 0 16px;
+/* ================= WRAPPER ================= */
+.wrapper {
+  max-width: 1100px;
+  margin: 0 auto;
 }
 
-.form {
-  background: var(--white);
+/* ================= IMAGE SIDE ================= */
+.imageBox {
+  display: none;
+  position: relative;
+}
+
+/* köpek */
+.dogImg {
+  width: 100%;
+  max-width: 420px;
+  display: block;
+  margin: 0 auto;
+}
+
+/* ================= PET INFO CARD ================= */
+.petCard {
+  position: absolute;
+  left: 24px;
+  bottom: 24px;
+  background: #ffffff;
   border-radius: 16px;
-  padding: 16px;
+  padding: 12px 14px;
+  max-width: 280px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.12);
+}
+.petInfo{
+  display: flex;
+  gap: 70px;
+}
+.petTop {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+
+.petAvatar {
+  width: 32px;
+  height: 32px;
+  background: #ffe6b0;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font-size: 16px;
+}
+
+.petName {
+  color: var(--accent);
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.2;
+}
+
+.petDate {
+  margin: 0;
+  font-size: 11px;
+  color: #8a8a8a;
+}
+
+.petDesc {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.4;
+  color: #444;
+}
+
+.title {
+  margin: 0 0 12px;
+  font-size: 54px;
+}
+
+.text{
+
+  font-size: 18px;
+}
+.form {
   display: grid;
   gap: 12px;
 }
@@ -21,18 +96,25 @@
 }
 
 .input {
-  padding: 12px;
-  border-radius: 12px;
+  padding: 14px;
+  border-radius: 999px;
   border: 1px solid rgba(38, 38, 38, 0.2);
+  outline: none;
+}
+
+.input:focus {
+  border-color: var(--accent);
 }
 
 .btn {
-  padding: 12px;
-  border-radius: 12px;
+  color: var(--white);
+  margin-top: 12px;
+  padding: 14px;
+  border-radius: 999px;
   border: none;
   background: var(--accent);
-  cursor: pointer;
   font-weight: 600;
+  cursor: pointer;
 }
 
 .error {
@@ -44,13 +126,69 @@
 .text {
   margin-top: 12px;
   font-size: 14px;
+  text-align: center;
 }
 
 .link {
   color: var(--accent);
   font-weight: 600;
 }
+
 .fieldError {
   font-size: 12px;
   color: #b00020;
+}
+
+/* ================= TABLET ================= */
+@media (min-width: 768px) {
+  .wrapper {
+    display: grid;
+    gap: 24px;
+  }
+
+  .imageBox {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    background: var(--accent);
+    border-radius: 48px;
+    padding: 32px;
+  }
+
+  .dogImg {
+    max-width: 360px;
+  }
+
+  .formBox {
+    max-width: 420px;
+    margin: 0 auto;
+  }
+}
+
+/* ================= DESKTOP ================= */
+@media (min-width: 1024px) {
+  .wrapper {
+     grid-template-columns: 1fr 1fr;
+    align-items: center;
+  }
+
+  .imageBox {
+    padding: 48px;
+    min-height: 520px;
+  }
+
+  .dogImg {
+    max-width: 460px;
+  }
+
+  .petCard {
+    left: 32px;
+    bottom: 32px;
+  }
+
+  .formBox {
+    border: 1px solid rgba(38, 38, 38, 0.2);
+    border-radius: 48px;
+    padding: 110px;
+  }
 }
