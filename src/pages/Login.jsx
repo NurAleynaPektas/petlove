@@ -110,7 +110,7 @@ export default function Login() {
             {serverError && <p className={s.error}>{serverError}</p>}
 
             <button className={s.btn} type="submit" disabled={isSubmitting}>
-              {isSubmitting ? "Logging in..." : "Log In"}
+              {isSubmitting ? "Logging in..." : "LOG IN"}
             </button>
           </form>
 

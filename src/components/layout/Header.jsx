@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { NavLink } from "react-router-dom";
+import { NavLink, useLocation } from "react-router-dom";
 import { signOut } from "firebase/auth";
 import { auth } from "../../services/firebase";
 import { useAuth } from "../../app/AuthContext";
@@ -8,6 +8,7 @@ import s from "./Header.module.css";
 export default function Header() {
   const [open, setOpen] = useState(false);
   const { user, ready } = useAuth();
+  const location = useLocation();
 
   const close = () => setOpen(false);
   if (!ready) return null;
@@ -23,18 +24,98 @@ export default function Header() {
     }
   };
 
+  if (open) {
+   
+  }
+
   return (
     <header className={s.header}>
-      <div className={s.logo}>pet💛ve</div>
+      <div className={s.inner}>
+        {/* LOGO */}
+        <NavLink to="/home" className={s.logo} onClick={close}>
+          pet💛ve
+        </NavLink>
 
-      <button
-        className={s.burger}
-        aria-label="Open menu"
-        onClick={() => setOpen(true)}
-      >
-        ☰
-      </button>
+        {/* DESKTOP MAIN NAV */}
+        <nav className={s.desktopNav}>
+          <NavLink
+            to="/news"
+            className={({ isActive }) => (isActive ? s.pillActive : s.pill)}
+          >
+            News
+          </NavLink>
 
+          <NavLink
+            to="/notices"
+            className={({ isActive }) => (isActive ? s.pillActive : s.pill)}
+          >
+            Find pet
+          </NavLink>
+
+          <NavLink
+            to="/friends"
+            className={({ isActive }) => (isActive ? s.pillActive : s.pill)}
+          >
+            Our friends
+          </NavLink>
+        </nav>
+
+        {/* RIGHT ACTIONS */}
+        <div className={s.right}>
+          {/* TABLET + DESKTOP AUTH BUTTONS  */}
+          {!isAuthed ? (
+            <div className={s.authRow}>
+              <NavLink
+                to="/login"
+                className={({ isActive }) =>
+                  isActive ? s.authBtnActive : s.authBtn
+                }
+              >
+                LOG IN
+              </NavLink>
+
+              <NavLink
+                to="/register"
+                className={({ isActive }) =>
+                  isActive ? s.authBtnSoftActive : s.authBtnSoft
+                }
+              >
+                REGISTRATION
+              </NavLink>
+            </div>
+          ) : (
+            <div className={s.userRow}>
+              <NavLink to="/profile" className={s.userPill} onClick={close}>
+                <img
+                  className={s.avatar}
+                  src={user.photoURL || "https://i.pravatar.cc/80?img=3"}
+                  alt="User avatar"
+                />
+                <span className={s.userName}>{user.displayName || "User"}</span>
+              </NavLink>
+
+              <button
+                type="button"
+                className={s.logoutPill}
+                onClick={handleLogout}
+              >
+                Log out
+              </button>
+            </div>
+          )}
+
+          {/* BURGER  */}
+          <button
+            className={s.burger}
+            aria-label="Open menu"
+            onClick={() => setOpen(true)}
+          >
+            ☰
+          </button>
+        </div>
+      </div>
+
+      {/* OVERLAY MENU */}
       {open && (
         <div className={s.overlay} onClick={close}>
           <div className={s.menu} onClick={(e) => e.stopPropagation()}>
@@ -42,11 +123,12 @@ export default function Header() {
               ✕
             </button>
 
-            {/* MAIN NAV */}
-            <nav className={s.nav}>
+            <nav className={s.mobileNav}>
               <NavLink
                 to="/news"
-                className={({ isActive }) => (isActive ? s.active : s.link)}
+                className={({ isActive }) =>
+                  isActive ? s.menuActive : s.menuLink
+                }
                 onClick={close}
               >
                 News
@@ -54,7 +136,9 @@ export default function Header() {
 
               <NavLink
                 to="/notices"
-                className={({ isActive }) => (isActive ? s.active : s.link)}
+                className={({ isActive }) =>
+                  isActive ? s.menuActive : s.menuLink
+                }
                 onClick={close}
               >
                 Notices
@@ -62,19 +146,24 @@ export default function Header() {
 
               <NavLink
                 to="/friends"
-                className={({ isActive }) => (isActive ? s.active : s.link)}
+                className={({ isActive }) =>
+                  isActive ? s.menuActive : s.menuLink
+                }
                 onClick={close}
               >
                 Friends
               </NavLink>
             </nav>
 
-            {/* AUTH / USER NAV */}
+            <div className={s.divider} />
+
             {!isAuthed ? (
-              <div className={s.auth}>
+              <div className={s.menuAuth}>
                 <NavLink
                   to="/login"
-                  className={({ isActive }) => (isActive ? s.active : s.link)}
+                  className={({ isActive }) =>
+                    isActive ? s.menuActive : s.menuLink
+                  }
                   onClick={close}
                 >
                   Log in
@@ -82,15 +171,21 @@ export default function Header() {
 
                 <NavLink
                   to="/register"
-                  className={({ isActive }) => (isActive ? s.active : s.link)}
+                  className={({ isActive }) =>
+                    isActive ? s.menuActive : s.menuLink
+                  }
                   onClick={close}
                 >
                   Registration
                 </NavLink>
               </div>
             ) : (
-              <div className={s.userNav}>
-                <NavLink to="/profile" className={s.userBar} onClick={close}>
+              <div className={s.menuUser}>
+                <NavLink
+                  to="/profile"
+                  className={s.menuUserBar}
+                  onClick={close}
+                >
                   <img
                     className={s.avatar}
                     src={user.photoURL || "https://i.pravatar.cc/80?img=3"}
@@ -103,7 +198,7 @@ export default function Header() {
 
                 <button
                   type="button"
-                  className={s.logoutBtn}
+                  className={s.menuLogout}
                   onClick={handleLogout}
                 >
                   Log out

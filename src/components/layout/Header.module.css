@@ -1,38 +1,156 @@
 .header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-
-  padding: 16px;
   background: var(--white);
+  padding: 16px;
 }
 
+.inner {
+  max-width: 1100px;
+  margin: 0 auto;
+
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 16px;
+}
+
+/* LOGO */
 .logo {
   font-weight: 700;
   font-size: 20px;
+  color: var(--text);
+  text-decoration: none;
 }
 
-.burger {
-  background: none;
-  border: none;
-  font-size: 24px;
+/* DESKTOP NAV  */
+.desktopNav {
+  display: none;
+  justify-content: center;
+  gap: 12px;
+}
+
+
+.pill,
+.pillActive {
+  text-decoration: none;
+  padding: 10px 16px;
+  border-radius: 999px;
+  border: 1px solid rgba(38, 38, 38, 0.12);
+  font-size: 14px;
+  color: var(--text);
+  background: transparent;
+}
+
+.pillActive {
+  border-color: rgba(38, 38, 38, 0.18);
+  font-weight: 600;
+}
+
+/* RIGHT AREA */
+.right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  justify-content: flex-end;
+}
+
+.authRow {
+  display: none;
+  align-items: center;
+  gap: 12px;
+}
+
+.authBtn,
+.authBtnActive {
+  text-decoration: none;
+  padding: 10px 18px;
+  border-radius: 999px;
+  background: var(--accent);
+  color: var(--white);
+  font-weight: 700;
+  font-size: 12px;
+  letter-spacing: 0.3px;
+}
+
+.authBtnActive {
+  filter: brightness(0.98);
+}
+
+.authBtnSoft,
+.authBtnSoftActive {
+  text-decoration: none;
+  padding: 10px 18px;
+  border-radius: 999px;
+  background: rgba(255, 199, 70, 0.25);
+  color: var(--accent);
+  font-weight: 700;
+  font-size: 12px;
+  letter-spacing: 0.3px;
+}
+
+.authBtnSoftActive {
+  background: rgba(255, 199, 70, 0.32);
+}
+
+/* AUTHED */
+.userRow {
+  display: none;
+  align-items: center;
+  gap: 10px;
+}
+
+.userPill {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  text-decoration: none;
+  padding: 8px 12px;
+  border-radius: 999px;
+  border: 1px solid rgba(38, 38, 38, 0.12);
+  color: var(--text);
+}
+
+.logoutPill {
+  padding: 10px 14px;
+  border-radius: 999px;
+  border: 1px solid rgba(38, 38, 38, 0.12);
+  background: transparent;
   cursor: pointer;
 }
 
-/* overlay */
+.avatar {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.userName {
+  font-size: 14px;
+  font-weight: 600;
+}
+
+/* BURGER  */
+.burger {
+  background: none;
+  border: none;
+  font-size: 26px;
+  cursor: pointer;
+  line-height: 1;
+}
+
+/* OVERLAY */
 .overlay {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.4);
-  z-index: 20;
+  background: rgba(0, 0, 0, 0.35);
+  z-index: 50;
 }
 
-/* menu panel */
 .menu {
   position: absolute;
   top: 0;
   right: 0;
-  width: 260px;
+  width: 280px;
   height: 100%;
   background: var(--white);
   padding: 16px;
@@ -45,28 +163,81 @@
   cursor: pointer;
 }
 
-/* nav links */
-.nav {
+.mobileNav {
   display: flex;
   flex-direction: column;
   gap: 16px;
   margin-top: 24px;
 }
 
-.auth {
-  margin-top: 32px;
+.menuAuth {
+  margin-top: 18px;
   display: flex;
   flex-direction: column;
   gap: 12px;
 }
 
-.link {
+.menuLink,
+.menuActive {
+  text-decoration: none;
   font-size: 18px;
   color: var(--text);
 }
 
-.active {
-  font-size: 18px;
+.menuActive {
   color: var(--accent);
-  font-weight: 600;
+  font-weight: 700;
+}
+
+.divider {
+  margin-top: 18px;
+  height: 1px;
+  background: rgba(38, 38, 38, 0.12);
+}
+
+.menuUser {
+  margin-top: 18px;
+  display: grid;
+  gap: 12px;
+}
+
+.menuUserBar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  text-decoration: none;
+  color: var(--text);
+  padding: 10px 12px;
+  border-radius: 14px;
+  border: 1px solid rgba(38, 38, 38, 0.12);
+}
+
+.menuLogout {
+  padding: 12px;
+  border-radius: 14px;
+  border: 1px solid rgba(38, 38, 38, 0.12);
+  background: transparent;
+  cursor: pointer;
+}
+
+/* TABLET*/
+@media (min-width: 768px) {
+  .authRow {
+    display: flex;
+  }
+  .userRow {
+    display: flex;
+  }
+}
+
+/* DESKTOP*/
+@media (min-width: 1024px) {
+  .desktopNav {
+    display: flex;
+  }
+
+  .burger {
+    display: none;
+  }
+
 }
