@@ -85,7 +85,7 @@ export default function Notices() {
   const [categories, setCategories] = useState([]);
   const [sexes, setSexes] = useState([]);
   const [speciesList, setSpeciesList] = useState([]);
-  const [cities, setCities] = useState([]); // ✅ string[] olacak
+  const [cities, setCities] = useState([]); 
 
   // notices
   const [items, setItems] = useState([]);
@@ -100,8 +100,6 @@ export default function Notices() {
     { key: "cheap", label: "Cheap" },
     { key: "expensive", label: "Expensive" },
   ];
-
-  /* ---------- fetch dropdowns ---------- */
 
   useEffect(() => {
     let alive = true;
@@ -193,8 +191,6 @@ export default function Notices() {
     };
   }, [page, search, category, sex, species, location, sort]);
 
-  /* ---------- favorites ---------- */
-
   async function toggleFavorite(item) {
     const id = getNoticeId(item);
     if (!id) return;
@@ -206,7 +202,6 @@ export default function Notices() {
 
     const wasFav = Boolean(item?.favorite || item?.isFavorite);
 
-    // optimistic UI
     setItems((prev) =>
       prev.map((x) => {
         const xid = getNoticeId(x);
@@ -219,7 +214,6 @@ export default function Notices() {
       if (wasFav) await removeFavoriteNotice(id);
       else await addFavoriteNotice(id);
     } catch (e) {
-      // rollback
       setItems((prev) =>
         prev.map((x) => {
           const xid = getNoticeId(x);
@@ -231,16 +225,11 @@ export default function Notices() {
     }
   }
 
-  /* ---------- pagination ---------- */
-
   const pages = useMemo(() => {
-    // figma gibi basit sayfa butonları
     const arr = [];
     for (let i = 1; i <= totalPages; i++) arr.push(i);
     return arr;
   }, [totalPages]);
-
-  /* ---------- render ---------- */
 
   return (
     <div className={s.page}>
@@ -345,7 +334,6 @@ export default function Notices() {
 
             const fav = Boolean(it?.favorite || it?.isFavorite);
 
-            // küçük meta satırı (istersen figma gibi genişletiriz)
             const metaLeft = [it?.breed, it?.location, it?.category]
               .filter(Boolean)
               .join(" • ");
@@ -383,7 +371,7 @@ export default function Notices() {
                     </div>
                   </div>
 
-                  {/* Info row like Figma */}
+                  {/* Info row */}
                   <div className={s.infoRow}>
                     <div className={s.infoItem}>
                       <span className={s.infoLabel}>Name</span>

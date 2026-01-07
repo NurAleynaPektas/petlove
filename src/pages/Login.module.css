@@ -3,13 +3,12 @@
 
 }
 
-/*  WRAPPER */
+
 .wrapper {
   max-width: 1100px;
   margin: 0 auto;
 }
 
-/* IMAGE SIDE */
 .imageBox {
   background-color: var(--accent);
   position: relative;
@@ -24,8 +23,6 @@
   display: block;
   margin: 0 auto;
 }
-
-/* PET INFO CARD */
 
 .petCard {
   display: none;

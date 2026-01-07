@@ -207,7 +207,6 @@
   cursor: pointer;
 }
 
-/* pagination */
 .pagination {
   margin-top: 18px;
   display: flex;
@@ -259,7 +258,7 @@
   opacity: 0.8;
 }
 
-/* figma alt info satırı */
+
 .infoRow {
   margin-top: 8px;
   display:flex;

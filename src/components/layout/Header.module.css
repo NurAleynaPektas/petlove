@@ -13,7 +13,6 @@
   gap: 16px;
 }
 
-/* LOGO */
 .logo {
   font-weight: 700;
   font-size: 20px;
@@ -21,7 +20,6 @@
   text-decoration: none;
 }
 
-/* DESKTOP NAV  */
 .desktopNav {
   display: none;
   justify-content: center;
@@ -45,7 +43,6 @@
   font-weight: 600;
 }
 
-/* RIGHT AREA */
 .right {
   display: flex;
   align-items: center;
@@ -91,7 +88,6 @@
   background: rgba(255, 199, 70, 0.32);
 }
 
-/* AUTHED */
 .userRow {
   display: none;
   align-items: center;
@@ -129,7 +125,6 @@
   font-weight: 600;
 }
 
-/* BURGER  */
 .burger {
   background: none;
   border: none;
@@ -138,7 +133,7 @@
   line-height: 1;
 }
 
-/* OVERLAY */
+
 .overlay {
   position: fixed;
   inset: 0;
