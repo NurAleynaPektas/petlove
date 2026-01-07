@@ -4,27 +4,24 @@ import MainLayout from "./components/layout/MainLayout";
 import Home from "./pages/Home";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
+import News from "./pages/News";
 
 export default function App() {
   return (
     <Routes>
       <Route element={<MainLayout />}>
         <Route path="/" element={<Navigate to="/home" replace />} />
-
         {/* Pages */}
         <Route path="/home" element={<Home />} />
-        <Route path="/news" element={<h1>News</h1>} />
+        <Route path="/news" element={<News />} /> 
         <Route path="/notices" element={<h1>Notices</h1>} />
         <Route path="/friends" element={<h1>Friends</h1>} />
-
         {/* Auth */}
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
-
         {/* Other */}
         <Route path="/profile" element={<h1>Profile</h1>} />
         <Route path="/add-pet" element={<h1>Add Pet</h1>} />
-
         {/* Fallback */}
         <Route path="*" element={<Navigate to="/home" replace />} />
       </Route>
