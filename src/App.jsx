@@ -6,6 +6,7 @@ import Login from "./pages/Login";
 import Register from "./pages/Register";
 import News from "./pages/News";
 import Friends from "./pages/Friends";
+import Notices from "./pages/Notices";
 
 export default function App() {
   return (
@@ -15,7 +16,7 @@ export default function App() {
         {/* Pages */}
         <Route path="/home" element={<Home />} />
         <Route path="/news" element={<News />} />
-        <Route path="/notices" element={<h1>Notices</h1>} />
+        <Route path="/notices" element={<Notices />} />
         <Route path="/friends" element={<Friends />} />
 
         {/* Auth */}
