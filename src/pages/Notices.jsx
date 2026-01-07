@@ -419,7 +419,9 @@ export default function Notices() {
                       {getDescription(it) || "No description"}
                     </p>
                     <span className={s.price}>
-                      {price !== undefined && price !== null ? `$${price}` : ""}
+                      {price !== undefined && price !== null
+                        ? `$${price}`
+                        : "$ —"}
                     </span>
                   </div>
                   {/* Price + Actions */}
