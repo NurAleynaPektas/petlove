@@ -13,7 +13,7 @@
 
 .title {
   margin: 0;
-  font-size: 42px;
+  font-size: 38px;
   letter-spacing: -0.02em;
 }
 
@@ -55,7 +55,7 @@
   padding: 4px 5px;
   border-radius: 999px;
   background: rgba(247, 183, 49, 0.25);
-  color: rgba(0, 0, 0, 0.75);
+  color: var(--accent);
 }
 
 .cardInner {
