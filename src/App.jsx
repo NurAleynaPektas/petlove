@@ -5,6 +5,7 @@ import Home from "./pages/Home";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
 import News from "./pages/News";
+import Friends from "./pages/Friends";
 
 export default function App() {
   return (
@@ -13,9 +14,10 @@ export default function App() {
         <Route path="/" element={<Navigate to="/home" replace />} />
         {/* Pages */}
         <Route path="/home" element={<Home />} />
-        <Route path="/news" element={<News />} /> 
+        <Route path="/news" element={<News />} />
         <Route path="/notices" element={<h1>Notices</h1>} />
-        <Route path="/friends" element={<h1>Friends</h1>} />
+        <Route path="/friends" element={<Friends />} />
+
         {/* Auth */}
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
