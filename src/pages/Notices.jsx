@@ -12,6 +12,7 @@ import {
 } from "../services/notices";
 import s from "./Notices.module.css";
 
+/* ---------- helpers ---------- */
 function normalizeArray(data) {
   if (Array.isArray(data)) return data;
   if (Array.isArray(data?.result)) return data.result;
@@ -48,6 +49,14 @@ function getNoticeId(it) {
 
   return null;
 }
+
+function buildKey(it, index) {
+  const id = getNoticeId(it);
+  if (id) return id;
+  const title = it?.title || it?.name || "item";
+  return `${title}-${index}`;
+}
+
 function pickFirstString(...vals) {
   for (const v of vals) {
     if (typeof v === "string" && v.trim()) return v.trim();
@@ -58,13 +67,31 @@ function pickFirstString(...vals) {
 function getDescription(it) {
   return pickFirstString(it?.comment);
 }
-function buildKey(it, index) {
-  const id = getNoticeId(it);
-  if (id) return id;
-  const title = it?.title || it?.name || "item";
-  return `${title}-${index}`;
+
+function formatDate(val) {
+  if (!val) return "—";
+  const str = String(val).trim();
+  if (!str) return "—";
+
+  if (/^\d{4}-\d{2}-\d{2}/.test(str)) {
+    const d = new Date(str);
+    if (!Number.isNaN(d.getTime())) {
+      const dd = String(d.getDate()).padStart(2, "0");
+      const mm = String(d.getMonth() + 1).padStart(2, "0");
+      const yy = d.getFullYear();
+      return `${dd}.${mm}.${yy}`;
+    }
+  }
+  return str;
 }
 
+function toStars(val) {
+  const n = Number(val);
+  const safe = Number.isFinite(n) ? n : 1;
+  return Math.max(1, Math.min(5, Math.round(safe)));
+}
+
+/* ---------- component ---------- */
 export default function Notices() {
   const navigate = useNavigate();
   const { user } = useAuth();
@@ -85,7 +112,7 @@ export default function Notices() {
   const [categories, setCategories] = useState([]);
   const [sexes, setSexes] = useState([]);
   const [speciesList, setSpeciesList] = useState([]);
-  const [cities, setCities] = useState([]); 
+  const [cities, setCities] = useState([]);
 
   // notices
   const [items, setItems] = useState([]);
@@ -94,6 +121,10 @@ export default function Notices() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
+  // modals
+  const [activeNotice, setActiveNotice] = useState(null);
+  const [showAuthModal, setShowAuthModal] = useState(false);
+
   const sortChips = [
     { key: "popular", label: "Popular" },
     { key: "unpopular", label: "Unpopular" },
@@ -101,6 +132,7 @@ export default function Notices() {
     { key: "expensive", label: "Expensive" },
   ];
 
+  /* ---------- fetch dropdowns ---------- */
   useEffect(() => {
     let alive = true;
 
@@ -110,10 +142,11 @@ export default function Notices() {
           fetchNoticeCategories(),
           fetchNoticeSex(),
           fetchNoticeSpecies(),
-          fetchCities(),
+          fetchCities(), // /cities/locations
         ]);
 
         if (!alive) return;
+
         if (c1.status === "fulfilled") {
           const arr = normalizeArray(c1.value);
           setCategories(arr.filter((x) => typeof x === "string" && x.trim()));
@@ -134,14 +167,14 @@ export default function Notices() {
           const mapped = raw
             .map((x) => {
               if (typeof x === "string") return x;
-
               return x?.cityEn || x?.cityUA || x?.cityUa || x?.name || "";
             })
             .filter(Boolean);
-
           setCities(Array.from(new Set(mapped)));
         }
-      } catch {}
+      } catch {
+        // ignore
+      }
     })();
 
     return () => {
@@ -149,10 +182,12 @@ export default function Notices() {
     };
   }, []);
 
+  /* ---------- reset page on filter change ---------- */
   useEffect(() => {
     setPage(1);
   }, [search, category, sex, species, location, sort]);
 
+  /* ---------- fetch notices ---------- */
   useEffect(() => {
     let alive = true;
 
@@ -173,8 +208,8 @@ export default function Notices() {
         });
 
         const normalized = normalizePaged(data);
-
         if (!alive) return;
+
         setItems(normalized.items);
         setTotalPages(normalized.totalPages);
       } catch (e) {
@@ -191,17 +226,19 @@ export default function Notices() {
     };
   }, [page, search, category, sex, species, location, sort]);
 
+  /* ---------- favorites ---------- */
   async function toggleFavorite(item) {
     const id = getNoticeId(item);
     if (!id) return;
 
     if (!user) {
-      navigate("/login");
+      setShowAuthModal(true);
       return;
     }
 
     const wasFav = Boolean(item?.favorite || item?.isFavorite);
 
+    // optimistic UI
     setItems((prev) =>
       prev.map((x) => {
         const xid = getNoticeId(x);
@@ -210,10 +247,19 @@ export default function Notices() {
       })
     );
 
+    // modal açıkken onu da güncelle
+    setActiveNotice((prev) => {
+      if (!prev) return prev;
+      const pid = getNoticeId(prev);
+      if (pid !== id) return prev;
+      return { ...prev, favorite: !wasFav, isFavorite: !wasFav };
+    });
+
     try {
       if (wasFav) await removeFavoriteNotice(id);
       else await addFavoriteNotice(id);
     } catch (e) {
+      // rollback
       setItems((prev) =>
         prev.map((x) => {
           const xid = getNoticeId(x);
@@ -221,15 +267,70 @@ export default function Notices() {
           return { ...x, favorite: wasFav, isFavorite: wasFav };
         })
       );
+      setActiveNotice((prev) => {
+        if (!prev) return prev;
+        const pid = getNoticeId(prev);
+        if (pid !== id) return prev;
+        return { ...prev, favorite: wasFav, isFavorite: wasFav };
+      });
+
       alert(e?.message || "Favorite işlemi başarısız.");
     }
   }
 
+  /* ---------- pagination ---------- */
   const pages = useMemo(() => {
     const arr = [];
     for (let i = 1; i <= totalPages; i++) arr.push(i);
     return arr;
   }, [totalPages]);
+
+  /* ---------- modal controls ---------- */
+  function closeModals() {
+    setActiveNotice(null);
+    setShowAuthModal(false);
+  }
+
+  useEffect(() => {
+    function onKeyDown(e) {
+      if (e.key === "Escape") closeModals();
+    }
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, []);
+
+  function onLearnMore(it) {
+    if (!user) {
+      setShowAuthModal(true);
+      return;
+    }
+    setActiveNotice(it);
+  }
+
+  function onAuthGoLogin() {
+    closeModals();
+    navigate("/login");
+  }
+
+  function onAuthGoRegister() {
+    closeModals();
+    navigate("/register");
+  }
+
+  function onContact(it) {
+    const email = it?.email;
+    const phone = it?.phone;
+
+    if (email) {
+      window.location.href = `mailto:${email}`;
+      return;
+    }
+    if (phone) {
+      window.location.href = `tel:${phone}`;
+      return;
+    }
+    alert("Contact info not available.");
+  }
 
   return (
     <div className={s.page}>
@@ -331,15 +432,10 @@ export default function Notices() {
             const img =
               it?.imgURL || it?.imgUrl || it?.imageUrl || it?.photo || "";
             const price = it?.price ?? it?.cost;
-
             const fav = Boolean(it?.favorite || it?.isFavorite);
 
-            const metaLeft = [it?.breed, it?.location, it?.category]
-              .filter(Boolean)
-              .join(" • ");
-            const metaRight = [it?.sex, it?.species]
-              .filter(Boolean)
-              .join(" • ");
+            // kart yıldızları (Figma’daki gibi)
+            const stars = toStars(it?.rating ?? it?.popularity ?? 1);
 
             return (
               <article key={key} className={s.card}>
@@ -357,21 +453,28 @@ export default function Notices() {
                 </div>
 
                 <div className={s.cardBody}>
-                  {/* Title + Rating */}
                   <div className={s.cardTop}>
                     <h3 className={s.cardTitle}>{title}</h3>
 
-                    <div className={s.rating}>
-                      <span className={s.star} aria-hidden="true">
-                        ★
-                      </span>
-                      <span className={s.rateNum}>
-                        {it?.rating ?? it?.popularity ?? it?.favoriteCount ?? 0}
-                      </span>
+                    <div
+                      className={s.starsRowCard}
+                      aria-label={`Rating ${stars}`}
+                    >
+                      {Array.from({ length: 5 }).map((_, i) => (
+                        <span
+                          key={i}
+                          className={`${s.starIcon} ${
+                            i < stars ? s.starOn : s.starOff
+                          }`}
+                          aria-hidden="true"
+                        >
+                          ★
+                        </span>
+                      ))}
+                      <span className={s.starCount}>{stars}</span>
                     </div>
                   </div>
 
-                  {/* Info row */}
                   <div className={s.infoRow}>
                     <div className={s.infoItem}>
                       <span className={s.infoLabel}>Name</span>
@@ -381,7 +484,7 @@ export default function Notices() {
                     <div className={s.infoItem}>
                       <span className={s.infoLabel}>Birthday</span>
                       <span className={s.infoValue}>
-                        {it?.birthday || it?.date || it?.birth || "—"}
+                        {formatDate(it?.birthday || it?.birthDate || it?.date)}
                       </span>
                     </div>
 
@@ -401,21 +504,23 @@ export default function Notices() {
                     </div>
                   </div>
 
-                  {/* Description */}
-                  <div className={s.description}>
-                    <p className={s.desc}>
-                      {getDescription(it) || "No description"}
-                    </p>
+                  <p className={s.desc}>
+                    {getDescription(it) || "No description"}
+                  </p>
+
+                  <div className={s.bottom}>
                     <span className={s.price}>
                       {price !== undefined && price !== null
                         ? `$${price}`
                         : "$ —"}
                     </span>
-                  </div>
-                  {/* Price + Actions */}
-                  <div className={s.bottom}>
+
                     <div className={s.actions}>
-                      <button className={s.learn} type="button">
+                      <button
+                        className={s.learn}
+                        type="button"
+                        onClick={() => onLearnMore(it)}
+                      >
                         Learn more
                       </button>
 
@@ -451,6 +556,130 @@ export default function Notices() {
           </button>
         ))}
       </div>
+
+      {/* MODALS */}
+      {(activeNotice || showAuthModal) && (
+        <div className={s.modalOverlay} onMouseDown={closeModals}>
+          <div className={s.modal} onMouseDown={(e) => e.stopPropagation()}>
+            <button
+              className={s.modalClose}
+              onClick={closeModals}
+              aria-label="Close"
+            >
+              ×
+            </button>
+
+            {/* AUTH MODAL */}
+            {showAuthModal && !activeNotice && (
+              <div className={s.authModal}>
+                <div className={s.authIcon}>🐶</div>
+                <h3 className={s.authTitle}>Attention</h3>
+                <p className={s.authText}>
+                  We would like to remind you that certain functionality is
+                  available only to authorized users. If you have an account,
+                  please log in with your credentials. If you do not already
+                  have an account, you must register to access these features.
+                </p>
+                <div className={s.authBtns}>
+                  <button className={s.authPrimary} onClick={onAuthGoLogin}>
+                    Log in
+                  </button>
+                  <button
+                    className={s.authSecondary}
+                    onClick={onAuthGoRegister}
+                  >
+                    Registration
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* DETAIL MODAL */}
+            {activeNotice && (
+              <NoticeDetailModal
+                it={activeNotice}
+                onToggleFav={() => toggleFavorite(activeNotice)}
+                onContact={() => onContact(activeNotice)}
+              />
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ---------- detail modal ---------- */
+function NoticeDetailModal({ it, onToggleFav, onContact }) {
+  const title = it?.title || it?.name || "Pet";
+  const img = it?.imgURL || it?.imgUrl || it?.imageUrl || it?.photo || "";
+  const fav = Boolean(it?.favorite || it?.isFavorite);
+  const price = it?.price ?? it?.cost;
+  const desc = pickFirstString(it?.comment);
+
+  const badgeText = it?.category || "Pet";
+  const stars = toStars(it?.rating ?? it?.popularity ?? 1);
+
+  return (
+    <div className={s.detailModal}>
+      <div className={s.detailImgWrap}>
+        <div className={s.detailBadge}>{badgeText}</div>
+
+        {img ? (
+          <img className={s.detailImg} src={img} alt={title} />
+        ) : (
+          <div className={s.detailImgFallback} />
+        )}
+      </div>
+
+      <h3 className={s.detailTitle}>{title}</h3>
+
+      <div className={s.starsRow} aria-label={`Rating ${stars}`}>
+        {Array.from({ length: 5 }).map((_, i) => (
+          <span
+            key={i}
+            className={`${s.starIcon} ${i < stars ? s.starOn : s.starOff}`}
+            aria-hidden="true"
+          >
+            ★
+          </span>
+        ))}
+        <span className={s.starCount}>{stars}</span>
+      </div>
+
+      <div className={s.detailInfoRow}>
+        <Info label="Name" value={it?.name || "—"} />
+        <Info
+          label="Birthday"
+          value={formatDate(it?.birthday || it?.birthDate || it?.date)}
+        />
+        <Info label="Sex" value={it?.sex || "—"} />
+        <Info label="Species" value={it?.species || "—"} />
+      </div>
+
+      <p className={s.detailDesc}>{desc || "No description"}</p>
+
+      <div className={s.detailPrice}>
+        {price !== undefined && price !== null ? `$${price}` : "$ —"}
+      </div>
+
+      <div className={s.detailBtns}>
+        <button className={s.btnPrimary} onClick={onToggleFav} type="button">
+          {fav ? "Added ❤️" : "Add to "} <span className={s.btnHeart}>♡</span>
+        </button>
+        <button className={s.btnGhost} onClick={onContact} type="button">
+          Contact
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function Info({ label, value }) {
+  return (
+    <div className={s.detailInfoItem}>
+      <span className={s.infoLabel}>{label}</span>
+      <span className={s.infoValue}>{value}</span>
     </div>
   );
 }
