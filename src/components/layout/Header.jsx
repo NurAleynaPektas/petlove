@@ -1,19 +1,33 @@
-import { useState } from "react";
-import { NavLink, useLocation } from "react-router-dom";
+import { useMemo, useState } from "react";
+import { NavLink } from "react-router-dom";
 import { signOut } from "firebase/auth";
 import { auth } from "../../services/firebase";
 import { useAuth } from "../../app/AuthContext";
 import s from "./Header.module.css";
 
+const PROFILE_LS_KEY = "petlove-profile";
+
+function safeReadProfile() {
+  try {
+    const raw = localStorage.getItem(PROFILE_LS_KEY);
+    const obj = raw ? JSON.parse(raw) : {};
+    return obj && typeof obj === "object" ? obj : {};
+  } catch {
+    return {};
+  }
+}
+
 export default function Header() {
   const [open, setOpen] = useState(false);
-  const { user, ready } = useAuth();
-  const location = useLocation();
-
+  const { user, ready, profileTick } = useAuth();
   const close = () => setOpen(false);
-  if (!ready) return null;
-
   const isAuthed = Boolean(user);
+  const avatarSrc = useMemo(() => {
+    const ls = safeReadProfile();
+    return ls.avatar || user?.photoURL || "https://i.pravatar.cc/80?img=3";
+  }, [profileTick, user]);
+
+  if (!ready) return null;
 
   const handleLogout = async () => {
     try {
@@ -24,10 +38,6 @@ export default function Header() {
     }
   };
 
-  if (open) {
-   
-  }
-
   return (
     <header className={s.header}>
       <div className={s.inner}>
@@ -36,7 +46,7 @@ export default function Header() {
           pet💛ve
         </NavLink>
 
-        {/* DESKTOP MAIN NAV */}
+        {/* DESKTOP NAV */}
         <nav className={s.desktopNav}>
           <NavLink
             to="/news"
@@ -60,9 +70,8 @@ export default function Header() {
           </NavLink>
         </nav>
 
-        {/* RIGHT ACTIONS */}
+        {/* RIGHT */}
         <div className={s.right}>
-          {/* TABLET + DESKTOP AUTH BUTTONS  */}
           {!isAuthed ? (
             <div className={s.authRow}>
               <NavLink
@@ -87,11 +96,14 @@ export default function Header() {
             <div className={s.userRow}>
               <NavLink to="/profile" className={s.userPill} onClick={close}>
                 <img
+                  key={avatarSrc}
                   className={s.avatar}
-                  src={user.photoURL || "https://i.pravatar.cc/80?img=3"}
+                  src={avatarSrc}
                   alt="User avatar"
                 />
-                <span className={s.userName}>{user.displayName || "User"}</span>
+                <span className={s.userName}>
+                  {user?.displayName || "User"}
+                </span>
               </NavLink>
 
               <button
@@ -104,7 +116,7 @@ export default function Header() {
             </div>
           )}
 
-          {/* BURGER  */}
+          {/* BURGER */}
           <button
             className={s.burger}
             aria-label="Open menu"
@@ -187,12 +199,13 @@ export default function Header() {
                   onClick={close}
                 >
                   <img
+                    key={avatarSrc + "-m"}
                     className={s.avatar}
-                    src={user.photoURL || "https://i.pravatar.cc/80?img=3"}
+                    src={avatarSrc}
                     alt="User avatar"
                   />
                   <span className={s.userName}>
-                    {user.displayName || "User"}
+                    {user?.displayName || "User"}
                   </span>
                 </NavLink>
 

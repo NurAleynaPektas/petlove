@@ -16,6 +16,7 @@ const schema = yup.object({
     .string()
     .required("Email zorunlu.")
     .matches(emailRegex, "Email formatı geçersiz."),
+  phone: yup.string().required("Phone zorunlu."),
   password: yup
     .string()
     .required("Password zorunlu.")
@@ -25,6 +26,8 @@ const schema = yup.object({
     .required("Confirm password zorunlu.")
     .oneOf([yup.ref("password")], "Password ve Confirm password aynı olmalı."),
 });
+
+const PROFILE_LS_KEY = "petlove-profile";
 
 export default function Register() {
   const navigate = useNavigate();
@@ -44,22 +47,59 @@ export default function Register() {
 
   const onSubmit = async (values) => {
     setServerError("");
+    console.log("SUBMIT START");
 
     try {
+      console.log("1) createUserWithEmailAndPassword...");
       const cred = await createUserWithEmailAndPassword(
         auth,
         values.email.trim(),
         values.password
       );
+      console.log("1 OK", cred.user.uid);
 
+      console.log("2) updateProfile...");
       await updateProfile(cred.user, { displayName: values.name.trim() });
+      console.log("2 OK");
+      console.log("3) save extra profile fields to localStorage...");
+      const prev = safeReadProfile();
+      safeWriteProfile({
+        ...prev,
+        phone: values.phone.trim(),
+      });
+      console.log("3 OK");
 
+      console.log("4) navigate...");
       navigate("/profile", { replace: true });
+      console.log("DONE");
     } catch (err) {
-      console.error(err);
-      setServerError("Kayıt başarısız. Email kullanılıyor olabilir.");
+      console.log("FIREBASE ERROR:", err?.code, err?.message, err);
+      const msg =
+        err?.code === "auth/email-already-in-use"
+          ? "Bu email zaten kullanılıyor."
+          : err?.code === "auth/invalid-email"
+          ? "Email formatı geçersiz."
+          : err?.code === "auth/weak-password"
+          ? "Şifre çok zayıf."
+          : err?.code || "Kayıt başarısız.";
+
+      setServerError(msg);
     }
   };
+
+  function safeReadProfile() {
+    try {
+      const raw = localStorage.getItem(PROFILE_LS_KEY);
+      const obj = raw ? JSON.parse(raw) : {};
+      return obj && typeof obj === "object" ? obj : {};
+    } catch {
+      return {};
+    }
+  }
+
+  function safeWriteProfile(obj) {
+    localStorage.setItem(PROFILE_LS_KEY, JSON.stringify(obj));
+  }
 
   return (
     <div className={s.page}>
@@ -160,6 +200,18 @@ export default function Register() {
               </div>
               {errors.confirm && (
                 <span className={s.fieldError}>{errors.confirm.message}</span>
+              )}
+            </label>
+
+            <label className={s.label}>
+              <input
+                className={s.input}
+                placeholder="Phone"
+                autoComplete="tel"
+                {...register("phone")}
+              />
+              {errors.phone && (
+                <span className={s.fieldError}>{errors.phone.message}</span>
               )}
             </label>
 

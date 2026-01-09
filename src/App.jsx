@@ -7,6 +7,7 @@ import Register from "./pages/Register";
 import News from "./pages/News";
 import Friends from "./pages/Friends";
 import Notices from "./pages/Notices";
+import Profile from "./pages/Profile";
 
 export default function App() {
   return (
@@ -23,7 +24,7 @@ export default function App() {
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
         {/* Other */}
-        <Route path="/profile" element={<h1>Profile</h1>} />
+        <Route path="/profile" element={<Profile />} />
         <Route path="/add-pet" element={<h1>Add Pet</h1>} />
         {/* Fallback */}
         <Route path="*" element={<Navigate to="/home" replace />} />
