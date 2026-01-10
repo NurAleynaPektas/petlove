@@ -1,68 +1,12 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { signOut, updateProfile } from "firebase/auth";
-import { auth } from "../services/firebase";
 import { useAuth } from "../app/AuthContext";
 import s from "./Profile.module.css";
 
 const PROFILE_LS_KEY = "petlove-profile";
 
-
-const demoFavorites = [
-  {
-    id: "1",
-    title: "Lost Gecko",
-    img: "https://images.unsplash.com/photo-1546182990-dffeafbe841d?q=80&w=1200&auto=format&fit=crop",
-    desc: "Friendly gecko lost around the park. Reward offered.",
-    price: 81.99,
-    stars: 4,
-  },
-  {
-    id: "2",
-    title: "Found Red-Eared Slider",
-    img: "https://images.unsplash.com/photo-1543946603-0d3c1c3bfe2a?q=80&w=1200&auto=format&fit=crop",
-    desc: "Found this turtle near the pond. Contact if yours.",
-    price: 40.99,
-    stars: 2,
-  },
-  {
-    id: "3",
-    title: "Golden Retriever Puppies",
-    img: "https://images.unsplash.com/photo-1548199973-03cce0bbc87b?q=80&w=1200&auto=format&fit=crop",
-    desc: "Adorable puppy looking for a loving home.",
-    price: 257.99,
-    stars: 1,
-  },
-  {
-    id: "4",
-    title: "Colorful Betta Fish",
-    img: "https://images.unsplash.com/photo-1587300003388-59208cc962cb?q=80&w=1200&auto=format&fit=crop",
-    desc: "Free to a good home. Beautiful betta fish.",
-    price: 63.99,
-    stars: 1,
-  },
-];
-
-const demoPets = [
-  {
-    id: "p1",
-    title: "Golden Retriever Puppies",
-    img: "https://images.unsplash.com/photo-1548199973-03cce0bbc87b?q=80&w=800&auto=format&fit=crop",
-    name: "Daisy",
-    birthday: "01.10.2022",
-    sex: "Female",
-    species: "Dog",
-  },
-  {
-    id: "p2",
-    title: "Persian Cat for Sale",
-    img: "https://images.unsplash.com/photo-1518791841217-8f162f1e1131?q=80&w=800&auto=format&fit=crop",
-    name: "Fluffy",
-    birthday: "20.06.2019",
-    sex: "Female",
-    species: "Cat",
-  },
-];
+const LS_FAV_KEY = "petlove-favorites";
+const LS_VIEWED_KEY = "petlove-viewed";
 
 function safeReadProfile() {
   try {
@@ -76,6 +20,22 @@ function safeReadProfile() {
 
 function safeWriteProfile(obj) {
   localStorage.setItem(PROFILE_LS_KEY, JSON.stringify(obj));
+}
+
+function safeReadArr(key) {
+  try {
+    const raw = localStorage.getItem(key);
+    const arr = raw ? JSON.parse(raw) : [];
+    return Array.isArray(arr) ? arr : [];
+  } catch {
+    return [];
+  }
+}
+
+function safeWriteArr(key, arr) {
+  localStorage.setItem(key, JSON.stringify(arr));
+  window.dispatchEvent(new Event("petlove-favs-changed"));
+  window.dispatchEvent(new Event("petlove-viewed-changed"));
 }
 
 function fileToDataUrl(file) {
@@ -108,6 +68,7 @@ function Stars({ value = 1 }) {
 export default function Profile() {
   const { user, ready } = useAuth();
   const navigate = useNavigate();
+
   const [tab, setTab] = useState("favorites");
   const [name, setName] = useState("User");
   const [email, setEmail] = useState("");
@@ -121,7 +82,25 @@ export default function Profile() {
   const [uploadErr, setUploadErr] = useState("");
   const [saving, setSaving] = useState(false);
   const [saveErr, setSaveErr] = useState("");
-
+  const [favorites, setFavorites] = useState([]);
+  const [viewed, setViewed] = useState([]);
+  const emptyText = useMemo(() => {
+    if (tab === "favorites") {
+      return (
+        <>
+          Oops, looks like there aren’t any furries on our adorable page yet.
+          Don’t worry! View your pets on the “find your favorite pet” page and
+          add them to your favorites.
+        </>
+      );
+    }
+    return (
+      <>
+        You haven’t viewed any notices yet. Go to “find your favorite pet” page
+        and open a card to see it here.
+      </>
+    );
+  }, [tab]);
 
   useEffect(() => {
     if (!ready) return;
@@ -129,8 +108,9 @@ export default function Profile() {
     const ls = safeReadProfile();
     const lsPhone = typeof ls.phone === "string" ? ls.phone : "";
     const lsAvatar = typeof ls.avatar === "string" ? ls.avatar : "";
+    const lsName = typeof ls.name === "string" ? ls.name : "";
 
-    const nextName = user?.displayName || "User";
+    const nextName = lsName || user?.name || user?.displayName || "User";
     const nextEmail = user?.email || "";
     const nextPhone = lsPhone || "+380";
 
@@ -140,7 +120,40 @@ export default function Profile() {
     setAvatarUrl(lsAvatar || user?.photoURL || "");
   }, [ready, user]);
 
- 
+  // LS’den favorites/viewed çek
+  const syncLists = () => {
+    const favs = safeReadArr(LS_FAV_KEY);
+    const v = safeReadArr(LS_VIEWED_KEY);
+
+    favs.sort((a, b) => Number(b?.ts || 0) - Number(a?.ts || 0));
+    v.sort((a, b) => Number(b?.ts || 0) - Number(a?.ts || 0));
+
+    setFavorites(favs);
+    setViewed(v);
+  };
+
+  useEffect(() => {
+    if (!ready) return;
+
+    syncLists();
+
+    const onFav = () => syncLists();
+    const onViewed = () => syncLists();
+    const onStorage = (e) => {
+      if (e.key === LS_FAV_KEY || e.key === LS_VIEWED_KEY) syncLists();
+    };
+
+    window.addEventListener("petlove-favs-changed", onFav);
+    window.addEventListener("petlove-viewed-changed", onViewed);
+    window.addEventListener("storage", onStorage);
+
+    return () => {
+      window.removeEventListener("petlove-favs-changed", onFav);
+      window.removeEventListener("petlove-viewed-changed", onViewed);
+      window.removeEventListener("storage", onStorage);
+    };
+  }, [ready]);
+
   useEffect(() => {
     function onKeyDown(e) {
       if (e.key === "Escape") setEditOpen(false);
@@ -148,9 +161,6 @@ export default function Profile() {
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
   }, []);
-
-  const favorites = useMemo(() => demoFavorites, []);
-  const viewed = useMemo(() => demoFavorites.slice().reverse(), []);
 
   if (!ready) return null;
 
@@ -180,9 +190,10 @@ export default function Profile() {
 
   const list = tab === "favorites" ? favorites : viewed;
 
-  async function handleLogout() {
+  function handleLogout() {
     try {
-      await signOut(auth);
+      localStorage.removeItem("petlove-token");
+      window.dispatchEvent(new Event("petlove-auth-changed"));
       navigate("/home");
     } catch (e) {
       console.error("Logout error:", e);
@@ -236,29 +247,49 @@ export default function Profile() {
 
     try {
       const nextName = String(editName || "").trim() || "User";
-      await updateProfile(user, { displayName: nextName });
-
       const nextPhone = String(editPhone || "").trim() || "+380";
-      const prev = safeReadProfile();
 
+      const prev = safeReadProfile();
       safeWriteProfile({
         ...prev,
+        name: nextName,
         phone: nextPhone,
         avatar: editAvatarUrl || "",
       });
 
       window.dispatchEvent(new Event("petlove-profile-changed"));
+
       setName(nextName);
       setPhone(nextPhone);
       setAvatarUrl(editAvatarUrl || "");
 
       setEditOpen(false);
     } catch (err) {
-      console.log("PROFILE SAVE ERROR:", err?.code, err?.message, err);
+      console.log("PROFILE SAVE ERROR:", err);
       setSaveErr("Save failed. Please try again.");
     } finally {
       setSaving(false);
     }
+  }
+
+  function handleRemoveFromList(card) {
+    const id = String(card?.id || "");
+    if (!id) return;
+
+    if (tab === "favorites") {
+      const next = favorites.filter((x) => String(x?.id) !== id);
+      setFavorites(next);
+      safeWriteArr(LS_FAV_KEY, next);
+      return;
+    }
+
+    const next = viewed.filter((x) => String(x?.id) !== id);
+    setViewed(next);
+    safeWriteArr(LS_VIEWED_KEY, next);
+  }
+
+  function handleLearnMoreFromProfile() {
+    navigate("/notices");
   }
 
   return (
@@ -305,39 +336,7 @@ export default function Profile() {
                 </button>
               </div>
 
-              <div className={s.petsList}>
-                {demoPets.map((p) => (
-                  <div key={p.id} className={s.petCard}>
-                    <img className={s.petImg} src={p.img} alt={p.title} />
-                    <div className={s.petInfo}>
-                      <div className={s.petTitle}>{p.title}</div>
-
-                      <div className={s.petMeta}>
-                        <div className={s.petMetaItem}>
-                          <span className={s.metaLabel}>Name</span>
-                          <span className={s.metaValue}>{p.name}</span>
-                        </div>
-                        <div className={s.petMetaItem}>
-                          <span className={s.metaLabel}>Birthday</span>
-                          <span className={s.metaValue}>{p.birthday}</span>
-                        </div>
-                        <div className={s.petMetaItem}>
-                          <span className={s.metaLabel}>Sex</span>
-                          <span className={s.metaValue}>{p.sex}</span>
-                        </div>
-                        <div className={s.petMetaItem}>
-                          <span className={s.metaLabel}>Species</span>
-                          <span className={s.metaValue}>{p.species}</span>
-                        </div>
-                      </div>
-                    </div>
-
-                    <button className={s.binBtn} type="button" title="Delete">
-                      🗑
-                    </button>
-                  </div>
-                ))}
-              </div>
+              <div className={s.petsList} />
 
               <button
                 className={s.logoutBtn}
@@ -369,41 +368,60 @@ export default function Profile() {
             </button>
           </div>
 
-          <div className={s.grid}>
-            {list.map((it) => (
-              <article key={it.id} className={s.card}>
-                <div className={s.thumb}>
-                  <img className={s.img} src={it.img} alt={it.title} />
-                </div>
-
-                <div className={s.body}>
-                  <div className={s.topRow}>
-                    <h3 className={s.cardTitle}>{it.title}</h3>
-                    <Stars value={it.stars} />
+          {list.length === 0 ? (
+            <div className={s.emptyRight}>
+              <p className={s.emptyText}>{emptyText}</p>
+            </div>
+          ) : (
+            <div className={s.grid}>
+              {list.map((it) => (
+                <article key={it.id} className={s.card}>
+                  <div className={s.thumb}>
+                    <img className={s.img} src={it.img} alt={it.title} />
                   </div>
 
-                  <div className={s.desc}>{it.desc}</div>
+                  <div className={s.body}>
+                    <div className={s.topRow}>
+                      <h3 className={s.cardTitle}>{it.title}</h3>
+                      <Stars value={it.stars} />
+                    </div>
 
-                  <div className={s.bottomRow}>
-                    <div className={s.price}>${Number(it.price).toFixed(2)}</div>
+                    <div className={s.desc}>{it.desc}</div>
 
-                    <div className={s.actions}>
-                      <button className={s.learnBtn} type="button">
-                        Learn more
-                      </button>
-                      <button className={s.binSmall} type="button" title="Remove">
-                        🗑
-                      </button>
+                    <div className={s.bottomRow}>
+                      <div className={s.price}>
+                        {it.price === null || it.price === undefined
+                          ? "$—"
+                          : `$${Number(it.price).toFixed(2)}`}
+                      </div>
+
+                      <div className={s.actions}>
+                        <button
+                          className={s.learnBtn}
+                          type="button"
+                          onClick={() => handleLearnMoreFromProfile(it)}
+                        >
+                          Learn more
+                        </button>
+
+                        <button
+                          className={s.binSmall}
+                          type="button"
+                          title="Remove"
+                          onClick={() => handleRemoveFromList(it)}
+                        >
+                          🗑
+                        </button>
+                      </div>
                     </div>
                   </div>
-                </div>
-              </article>
-            ))}
-          </div>
+                </article>
+              ))}
+            </div>
+          )}
         </main>
       </div>
 
-      {/* EDIT MODAL */}
       {editOpen && (
         <div className={s.modalOverlay} onMouseDown={() => setEditOpen(false)}>
           <div className={s.modal} onMouseDown={(e) => e.stopPropagation()}>
@@ -475,7 +493,11 @@ export default function Profile() {
               {saveErr && <div className={s.modalError}>{saveErr}</div>}
 
               <div className={s.modalBtns}>
-                <button className={s.modalPrimary} type="submit" disabled={saving}>
+                <button
+                  className={s.modalPrimary}
+                  type="submit"
+                  disabled={saving}
+                >
                   {saving ? "Saving..." : "Save"}
                 </button>
                 <button

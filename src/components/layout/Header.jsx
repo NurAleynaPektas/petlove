@@ -1,7 +1,5 @@
 import { useMemo, useState } from "react";
 import { NavLink } from "react-router-dom";
-import { signOut } from "firebase/auth";
-import { auth } from "../../services/firebase";
 import { useAuth } from "../../app/AuthContext";
 import s from "./Header.module.css";
 
@@ -20,33 +18,50 @@ function safeReadProfile() {
 export default function Header() {
   const [open, setOpen] = useState(false);
   const { user, ready, profileTick } = useAuth();
+
   const close = () => setOpen(false);
   const isAuthed = Boolean(user);
+
   const avatarSrc = useMemo(() => {
     const ls = safeReadProfile();
-    return ls.avatar || user?.photoURL || "https://i.pravatar.cc/80?img=3";
+    return (
+      ls.avatar ||
+      user?.avatar ||
+      user?.photoURL ||
+      "https://i.pravatar.cc/80?img=3"
+    );
   }, [profileTick, user]);
 
   if (!ready) return null;
 
-  const handleLogout = async () => {
+  const handleLogout = () => {
     try {
-      await signOut(auth);
+      localStorage.removeItem("petlove-token");
+
+      // (opsiyonel ama tavsiye) tam temizlik:
+      localStorage.removeItem("petlove-profile");
+      localStorage.removeItem("petlove-favorites");
+      localStorage.removeItem("petlove-viewed");
+
+      window.dispatchEvent(new Event("petlove-auth-changed"));
+      window.dispatchEvent(new Event("petlove-profile-changed"));
+      window.dispatchEvent(new Event("petlove-favs-changed"));
+      window.dispatchEvent(new Event("petlove-viewed-changed"));
+
       close();
     } catch (err) {
       console.error("Logout error:", err);
+      close();
     }
   };
 
   return (
     <header className={s.header}>
       <div className={s.inner}>
-        {/* LOGO */}
         <NavLink to="/home" className={s.logo} onClick={close}>
           pet💛ve
         </NavLink>
 
-        {/* DESKTOP NAV */}
         <nav className={s.desktopNav}>
           <NavLink
             to="/news"
@@ -70,7 +85,6 @@ export default function Header() {
           </NavLink>
         </nav>
 
-        {/* RIGHT */}
         <div className={s.right}>
           {!isAuthed ? (
             <div className={s.authRow}>
@@ -102,7 +116,7 @@ export default function Header() {
                   alt="User avatar"
                 />
                 <span className={s.userName}>
-                  {user?.displayName || "User"}
+                  {user?.name || user?.displayName || "User"}
                 </span>
               </NavLink>
 
@@ -116,7 +130,6 @@ export default function Header() {
             </div>
           )}
 
-          {/* BURGER */}
           <button
             className={s.burger}
             aria-label="Open menu"
@@ -127,7 +140,6 @@ export default function Header() {
         </div>
       </div>
 
-      {/* OVERLAY MENU */}
       {open && (
         <div className={s.overlay} onClick={close}>
           <div className={s.menu} onClick={(e) => e.stopPropagation()}>
@@ -205,7 +217,7 @@ export default function Header() {
                     alt="User avatar"
                   />
                   <span className={s.userName}>
-                    {user?.displayName || "User"}
+                    {user?.name || user?.displayName || "User"}
                   </span>
                 </NavLink>
 

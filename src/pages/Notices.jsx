@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { useAuth } from "../app/AuthContext";
 import {
   fetchNotices,
   fetchNoticeCategories,
@@ -11,6 +10,19 @@ import {
   removeFavoriteNotice,
 } from "../services/notices";
 import s from "./Notices.module.css";
+
+/* ---------------- LS keys ---------------- */
+const LS_FAV_KEY = "petlove-favorites";
+const LS_VIEWED_KEY = "petlove-viewed";
+
+/* ---------- auth helper ---------- */
+function hasToken() {
+  try {
+    return Boolean(localStorage.getItem("petlove-token"));
+  } catch {
+    return false;
+  }
+}
 
 /* ---------- helpers ---------- */
 function normalizeArray(data) {
@@ -46,7 +58,6 @@ function getNoticeId(it) {
       return null;
     }
   }
-
   return null;
 }
 
@@ -91,10 +102,66 @@ function toStars(val) {
   return Math.max(1, Math.min(5, Math.round(safe)));
 }
 
+/* ---------------- LS helpers ---------------- */
+function safeReadLS(key) {
+  try {
+    const raw = localStorage.getItem(key);
+    const arr = raw ? JSON.parse(raw) : [];
+    return Array.isArray(arr) ? arr : [];
+  } catch {
+    return [];
+  }
+}
+
+function safeWriteLS(key, arr) {
+  localStorage.setItem(key, JSON.stringify(arr));
+  // Profile ekranı anında güncellensin
+  window.dispatchEvent(new Event("petlove-favs-changed"));
+  window.dispatchEvent(new Event("petlove-viewed-changed"));
+}
+
+function toCardPayload(it) {
+  const id = getNoticeId(it);
+  const title = it?.title || it?.name || "Pet";
+  const img = it?.imgURL || it?.imgUrl || it?.imageUrl || it?.photo || "";
+  const desc = pickFirstString(it?.comment) || "No description";
+  const price = it?.price ?? it?.cost ?? null;
+  const stars = toStars(it?.rating ?? it?.popularity ?? 1);
+
+  return {
+    id,
+    title,
+    img,
+    desc,
+    price,
+    stars,
+    raw: it,
+    ts: Date.now(),
+  };
+}
+
+function upsertById(list, item) {
+  const id = item?.id;
+  if (!id) return list;
+  const idx = list.findIndex((x) => String(x?.id) === String(id));
+  if (idx >= 0) {
+    const copy = list.slice();
+    copy[idx] = { ...copy[idx], ...item, ts: Date.now() };
+    return copy;
+  }
+  return [{ ...item, ts: Date.now() }, ...list];
+}
+
+function removeById(list, id) {
+  return list.filter((x) => String(x?.id) !== String(id));
+}
+
 /* ---------- component ---------- */
 export default function Notices() {
   const navigate = useNavigate();
-  const { user } = useAuth();
+
+  // ✅ token bazlı auth state
+  const [isAuthed, setIsAuthed] = useState(() => hasToken());
 
   // filters
   const [search, setSearch] = useState("");
@@ -132,6 +199,19 @@ export default function Notices() {
     { key: "expensive", label: "Expensive" },
   ];
 
+  // ✅ token değişince UI güncellensin (Profile logout dispatch ediyor)
+  useEffect(() => {
+    function onAuthChanged() {
+      setIsAuthed(hasToken());
+    }
+    window.addEventListener("petlove-auth-changed", onAuthChanged);
+    window.addEventListener("storage", onAuthChanged);
+    return () => {
+      window.removeEventListener("petlove-auth-changed", onAuthChanged);
+      window.removeEventListener("storage", onAuthChanged);
+    };
+  }, []);
+
   /* ---------- fetch dropdowns ---------- */
   useEffect(() => {
     let alive = true;
@@ -142,7 +222,7 @@ export default function Notices() {
           fetchNoticeCategories(),
           fetchNoticeSex(),
           fetchNoticeSpecies(),
-          fetchCities(), // /cities/locations
+          fetchCities(),
         ]);
 
         if (!alive) return;
@@ -210,7 +290,16 @@ export default function Notices() {
         const normalized = normalizePaged(data);
         if (!alive) return;
 
-        setItems(normalized.items);
+        const favs = safeReadLS(LS_FAV_KEY);
+        const favIds = new Set(favs.map((x) => String(x?.id)));
+
+        const merged = normalized.items.map((it) => {
+          const id = getNoticeId(it);
+          const isFav = id ? favIds.has(String(id)) : false;
+          return { ...it, favorite: isFav, isFavorite: isFav };
+        });
+
+        setItems(merged);
         setTotalPages(normalized.totalPages);
       } catch (e) {
         if (!alive) return;
@@ -231,7 +320,8 @@ export default function Notices() {
     const id = getNoticeId(item);
     if (!id) return;
 
-    if (!user) {
+    // ✅ auth kontrolü token ile
+    if (!isAuthed) {
       setShowAuthModal(true);
       return;
     }
@@ -255,11 +345,19 @@ export default function Notices() {
       return { ...prev, favorite: !wasFav, isFavorite: !wasFav };
     });
 
+    // LS güncelle (optimistic)
+    const payload = toCardPayload(item);
+    const favsPrev = safeReadLS(LS_FAV_KEY);
+    const favsNext = wasFav
+      ? removeById(favsPrev, id)
+      : upsertById(favsPrev, payload);
+    safeWriteLS(LS_FAV_KEY, favsNext);
+
     try {
       if (wasFav) await removeFavoriteNotice(id);
       else await addFavoriteNotice(id);
     } catch (e) {
-      // rollback
+      // rollback UI
       setItems((prev) =>
         prev.map((x) => {
           const xid = getNoticeId(x);
@@ -274,8 +372,21 @@ export default function Notices() {
         return { ...prev, favorite: wasFav, isFavorite: wasFav };
       });
 
+      // rollback LS
+      safeWriteLS(LS_FAV_KEY, favsPrev);
+
       alert(e?.message || "Favorite işlemi başarısız.");
     }
+  }
+
+  /* ---------- viewed ---------- */
+  function pushViewed(it) {
+    const payload = toCardPayload(it);
+    if (!payload.id) return;
+
+    const prev = safeReadLS(LS_VIEWED_KEY);
+    const next = upsertById(prev, payload);
+    safeWriteLS(LS_VIEWED_KEY, next);
   }
 
   /* ---------- pagination ---------- */
@@ -300,10 +411,11 @@ export default function Notices() {
   }, []);
 
   function onLearnMore(it) {
-    if (!user) {
+    if (!isAuthed) {
       setShowAuthModal(true);
       return;
     }
+    pushViewed(it);
     setActiveNotice(it);
   }
 
@@ -434,7 +546,6 @@ export default function Notices() {
             const price = it?.price ?? it?.cost;
             const fav = Boolean(it?.favorite || it?.isFavorite);
 
-            // kart yıldızları (Figma’daki gibi)
             const stars = toStars(it?.rating ?? it?.popularity ?? 1);
 
             return (
@@ -551,6 +662,7 @@ export default function Notices() {
             key={p}
             className={`${s.pageNum} ${p === page ? s.active : ""}`}
             onClick={() => setPage(p)}
+            type="button"
           >
             {p}
           </button>
@@ -565,6 +677,7 @@ export default function Notices() {
               className={s.modalClose}
               onClick={closeModals}
               aria-label="Close"
+              type="button"
             >
               ×
             </button>
@@ -581,12 +694,17 @@ export default function Notices() {
                   have an account, you must register to access these features.
                 </p>
                 <div className={s.authBtns}>
-                  <button className={s.authPrimary} onClick={onAuthGoLogin}>
+                  <button
+                    className={s.authPrimary}
+                    onClick={onAuthGoLogin}
+                    type="button"
+                  >
                     Log in
                   </button>
                   <button
                     className={s.authSecondary}
                     onClick={onAuthGoRegister}
+                    type="button"
                   >
                     Registration
                   </button>
@@ -665,7 +783,8 @@ function NoticeDetailModal({ it, onToggleFav, onContact }) {
 
       <div className={s.detailBtns}>
         <button className={s.btnPrimary} onClick={onToggleFav} type="button">
-          {fav ? "Added ❤️" : "Add to "} <span className={s.btnHeart}>♡</span>
+          {fav ? "Added ❤️" : "Add to "}
+          <span className={s.btnHeart}>♡</span>
         </button>
         <button className={s.btnGhost} onClick={onContact} type="button">
           Contact

@@ -3,8 +3,7 @@ import { useNavigate, NavLink } from "react-router-dom";
 import { useForm } from "react-hook-form";
 import { yupResolver } from "@hookform/resolvers/yup";
 import * as yup from "yup";
-import { signInWithEmailAndPassword } from "firebase/auth";
-import { auth } from "../services/firebase";
+import { apiPost } from "../services/api";
 import s from "./Login.module.css";
 import dogImg from "../assets/loginkopek.png";
 
@@ -36,26 +35,48 @@ export default function Login() {
 
   const onSubmit = async (values) => {
     setServerError("");
+
+    const email = values.email.trim();
+    const password = values.password;
+
     try {
-      await signInWithEmailAndPassword(
-        auth,
-        values.email.trim(),
-        values.password
-      );
+     
+      const data = await apiPost("/users/signin", { email, password });
+
+      const token =
+        data?.token ||
+        data?.accessToken ||
+        data?.data?.token ||
+        data?.result?.token ||
+        data?.result?.accessToken;
+
+      if (!token) {
+        console.log("LOGIN RESPONSE:", data);
+        throw new Error("Token not found");
+      }
+
+      localStorage.setItem("petlove-token", token);
+      window.dispatchEvent(new Event("petlove-auth-changed"));
+
       navigate("/profile", { replace: true });
-    } catch {
-      setServerError("Email veya şifre hatalı.");
+    } catch (err) {
+      console.log("LOGIN ERROR:", err);
+      const msg = String(err?.message || "");
+
+      if (msg.toLowerCase().includes("service not found")) {
+        setServerError("Login servisi bulunamadı. Endpoint kontrol etmeliyiz.");
+      } else {
+        setServerError("Email veya şifre hatalı.");
+      }
     }
   };
 
   return (
     <div className={s.page}>
       <div className={s.wrapper}>
-        {/* IMAGE SIDE */}
         <div className={s.imageBox}>
           <img src={dogImg} alt="Dog" className={s.dogImg} />
 
-          {/* PET INFO CARD */}
           <div className={s.petCard}>
             <div className={s.petTop}>
               <div className={s.petAvatar}>🐶</div>
@@ -74,12 +95,12 @@ export default function Login() {
           </div>
         </div>
 
-        {/* FORM SIDE */}
         <div className={s.formBox}>
           <h1 className={s.title}>Log in</h1>
           <p className={s.text}>
             Welcome! Please enter your credentials to login to the platform:
           </p>
+
           <form className={s.form} onSubmit={handleSubmit(onSubmit)} noValidate>
             <label className={s.label}>
               Email

@@ -1,8 +1,15 @@
 import { createContext, useContext, useEffect, useMemo, useState } from "react";
-import { onAuthStateChanged } from "firebase/auth";
-import { auth } from "../services/firebase";
+import { fetchCurrentUser } from "../services/auth";
 
 const AuthContext = createContext(null);
+
+function getToken() {
+  try {
+    return localStorage.getItem("petlove-token");
+  } catch {
+    return null;
+  }
+}
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
@@ -10,18 +17,51 @@ export function AuthProvider({ children }) {
   const [profileTick, setProfileTick] = useState(0);
 
   useEffect(() => {
-    const unsub = onAuthStateChanged(auth, (u) => {
-      setUser(u || null);
-      setReady(true);
-    });
-    return unsub;
-  }, []);
+    let alive = true;
 
-  useEffect(() => {
+    async function boot() {
+      setReady(false);
+
+      const token = getToken();
+      if (!token) {
+        if (!alive) return;
+        setUser(null);
+        setReady(true);
+        return;
+      }
+
+      try {
+        const data = await fetchCurrentUser();
+        const u = data?.user || data?.data?.user || data?.result || data;
+        if (!alive) return;
+        setUser(u || null);
+      } catch (e) {
+        try {
+          localStorage.removeItem("petlove-token");
+        } catch {}
+        if (!alive) return;
+        setUser(null);
+      } finally {
+        if (!alive) return;
+        setReady(true);
+      }
+    }
+
+   
+    boot();
+
+  
     function onStorage(e) {
+      if (e.key === "petlove-token") boot();
       if (e.key === "petlove-profile") setProfileTick((t) => t + 1);
     }
     window.addEventListener("storage", onStorage);
+
+   
+    function onAuthChanged() {
+      boot();
+    }
+    window.addEventListener("petlove-auth-changed", onAuthChanged);
 
     function onProfileChanged() {
       setProfileTick((t) => t + 1);
@@ -29,13 +69,20 @@ export function AuthProvider({ children }) {
     window.addEventListener("petlove-profile-changed", onProfileChanged);
 
     return () => {
+      alive = false;
       window.removeEventListener("storage", onStorage);
+      window.removeEventListener("petlove-auth-changed", onAuthChanged);
       window.removeEventListener("petlove-profile-changed", onProfileChanged);
     };
   }, []);
 
   const value = useMemo(
-    () => ({ user, ready, profileTick }),
+    () => ({
+      user,
+      ready,
+      profileTick,
+      isAuthed: Boolean(user),
+    }),
     [user, ready, profileTick]
   );
 

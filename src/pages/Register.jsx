@@ -3,8 +3,7 @@ import { useNavigate, NavLink } from "react-router-dom";
 import { useForm } from "react-hook-form";
 import { yupResolver } from "@hookform/resolvers/yup";
 import * as yup from "yup";
-import { createUserWithEmailAndPassword, updateProfile } from "firebase/auth";
-import { auth } from "../services/firebase";
+import { apiPost } from "../services/api";
 import s from "./Register.module.css";
 import catImg from "../assets/loginKedi.png";
 
@@ -29,6 +28,21 @@ const schema = yup.object({
 
 const PROFILE_LS_KEY = "petlove-profile";
 
+function safeReadProfile() {
+  try {
+    const raw = localStorage.getItem(PROFILE_LS_KEY);
+    const obj = raw ? JSON.parse(raw) : {};
+    return obj && typeof obj === "object" ? obj : {};
+  } catch {
+    return {};
+  }
+}
+
+function safeWriteProfile(obj) {
+  localStorage.setItem(PROFILE_LS_KEY, JSON.stringify(obj));
+  window.dispatchEvent(new Event("petlove-profile-changed"));
+}
+
 export default function Register() {
   const navigate = useNavigate();
   const [serverError, setServerError] = useState("");
@@ -47,68 +61,58 @@ export default function Register() {
 
   const onSubmit = async (values) => {
     setServerError("");
-    console.log("SUBMIT START");
+
+    const name = values.name.trim();
+    const email = values.email.trim();
+    const password = values.password;
+    const phone = values.phone.trim();
 
     try {
-      console.log("1) createUserWithEmailAndPassword...");
-      const cred = await createUserWithEmailAndPassword(
-        auth,
-        values.email.trim(),
-        values.password
-      );
-      console.log("1 OK", cred.user.uid);
+      
+      const data = await apiPost("/users/signup", { name, email, password });
 
-      console.log("2) updateProfile...");
-      await updateProfile(cred.user, { displayName: values.name.trim() });
-      console.log("2 OK");
-      console.log("3) save extra profile fields to localStorage...");
+      const token =
+        data?.token ||
+        data?.accessToken ||
+        data?.data?.token ||
+        data?.data?.accessToken ||
+        data?.result?.token ||
+        data?.result?.accessToken;
+
+      if (!token) {
+        console.log("REGISTER BACKEND RESPONSE:", data);
+        throw new Error("Token not found in /users/signup response");
+      }
+
+      localStorage.setItem("petlove-token", token);
+      window.dispatchEvent(new Event("petlove-auth-changed"));
+
       const prev = safeReadProfile();
-      safeWriteProfile({
-        ...prev,
-        phone: values.phone.trim(),
-      });
-      console.log("3 OK");
+      safeWriteProfile({ ...prev, phone: phone || "" });
 
-      console.log("4) navigate...");
       navigate("/profile", { replace: true });
-      console.log("DONE");
     } catch (err) {
-      console.log("FIREBASE ERROR:", err?.code, err?.message, err);
-      const msg =
-        err?.code === "auth/email-already-in-use"
-          ? "Bu email zaten kullanılıyor."
-          : err?.code === "auth/invalid-email"
-          ? "Email formatı geçersiz."
-          : err?.code === "auth/weak-password"
-          ? "Şifre çok zayıf."
-          : err?.code || "Kayıt başarısız.";
+      console.log("REGISTER ERROR:", err);
+      const msg = String(err?.message || "");
 
-      setServerError(msg);
+      if (msg.includes("409") || msg.toLowerCase().includes("already")) {
+        setServerError("Bu email zaten kullanılıyor.");
+      } else if (msg.toLowerCase().includes("service not found")) {
+        setServerError(
+          "Register servisi bulunamadı. Endpoint kontrol etmeliyiz."
+        );
+      } else {
+        setServerError("Kayıt başarısız. Lütfen tekrar deneyin.");
+      }
     }
   };
-
-  function safeReadProfile() {
-    try {
-      const raw = localStorage.getItem(PROFILE_LS_KEY);
-      const obj = raw ? JSON.parse(raw) : {};
-      return obj && typeof obj === "object" ? obj : {};
-    } catch {
-      return {};
-    }
-  }
-
-  function safeWriteProfile(obj) {
-    localStorage.setItem(PROFILE_LS_KEY, JSON.stringify(obj));
-  }
 
   return (
     <div className={s.page}>
       <div className={s.wrapper}>
-        {/* IMAGE SIDE */}
         <div className={s.imageBox}>
           <img src={catImg} alt="Cat" className={s.petImg} />
 
-          {/* PET INFO CARD */}
           <div className={s.petCard}>
             <div className={s.petTop}>
               <div className={s.petAvatar}>🐱</div>
@@ -126,7 +130,6 @@ export default function Register() {
           </div>
         </div>
 
-        {/* FORM SIDE */}
         <div className={s.formBox}>
           <h1 className={s.title}>Registration</h1>
           <p className={s.text}>Thank you for your interest in our platform.</p>
