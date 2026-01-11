@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../app/AuthContext";
+import { backendSignout } from "../services/auth";
 import s from "./Profile.module.css";
 
 const PROFILE_LS_KEY = "petlove-profile";
@@ -74,16 +75,20 @@ export default function Profile() {
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("+380");
   const [avatarUrl, setAvatarUrl] = useState("");
+
   const [editOpen, setEditOpen] = useState(false);
   const [editName, setEditName] = useState("User");
   const [editEmail, setEditEmail] = useState("");
   const [editPhone, setEditPhone] = useState("+380");
   const [editAvatarUrl, setEditAvatarUrl] = useState("");
+
   const [uploadErr, setUploadErr] = useState("");
   const [saving, setSaving] = useState(false);
   const [saveErr, setSaveErr] = useState("");
+
   const [favorites, setFavorites] = useState([]);
   const [viewed, setViewed] = useState([]);
+
   const emptyText = useMemo(() => {
     if (tab === "favorites") {
       return (
@@ -120,7 +125,7 @@ export default function Profile() {
     setAvatarUrl(lsAvatar || user?.photoURL || "");
   }, [ready, user]);
 
-  // LS’den favorites/viewed çek
+  
   const syncLists = () => {
     const favs = safeReadArr(LS_FAV_KEY);
     const v = safeReadArr(LS_VIEWED_KEY);
@@ -190,10 +195,17 @@ export default function Profile() {
 
   const list = tab === "favorites" ? favorites : viewed;
 
-  function handleLogout() {
+  async function handleLogout() {
     try {
-      localStorage.removeItem("petlove-token");
-      window.dispatchEvent(new Event("petlove-auth-changed"));
+      await backendSignout();
+
+      localStorage.removeItem("petlove-profile");
+      localStorage.removeItem("petlove-favorites");
+      localStorage.removeItem("petlove-viewed");
+      window.dispatchEvent(new Event("petlove-profile-changed"));
+      window.dispatchEvent(new Event("petlove-favs-changed"));
+      window.dispatchEvent(new Event("petlove-viewed-changed"));
+
       navigate("/home");
     } catch (e) {
       console.error("Logout error:", e);
@@ -399,7 +411,7 @@ export default function Profile() {
                         <button
                           className={s.learnBtn}
                           type="button"
-                          onClick={() => handleLearnMoreFromProfile(it)}
+                          onClick={handleLearnMoreFromProfile}
                         >
                           Learn more
                         </button>

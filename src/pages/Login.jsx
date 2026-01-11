@@ -3,7 +3,9 @@ import { useNavigate, NavLink } from "react-router-dom";
 import { useForm } from "react-hook-form";
 import { yupResolver } from "@hookform/resolvers/yup";
 import * as yup from "yup";
-import { apiPost } from "../services/api";
+import { signInWithEmailAndPassword } from "firebase/auth";
+import { auth } from "../services/firebase";
+import { backendSignin } from "../services/auth";
 import s from "./Login.module.css";
 import dogImg from "../assets/loginkopek.png";
 
@@ -33,43 +35,51 @@ export default function Login() {
     mode: "onSubmit",
   });
 
-  const onSubmit = async (values) => {
-    setServerError("");
+ const onSubmit = async (values) => {
+   setServerError("");
 
-    const email = values.email.trim();
-    const password = values.password;
+   const email = values.email.trim();
+   const password = values.password;
 
-    try {
+   try {
      
-      const data = await apiPost("/users/signin", { email, password });
+     await signInWithEmailAndPassword(auth, email, password);
+     await backendSignin({ email, password });
 
-      const token =
-        data?.token ||
-        data?.accessToken ||
-        data?.data?.token ||
-        data?.result?.token ||
-        data?.result?.accessToken;
+     
+     navigate("/profile", { replace: true });
+   } catch (err) {
+     console.log("LOGIN ERROR:", err);
+     const msg = String(err?.message || "").toLowerCase();
 
-      if (!token) {
-        console.log("LOGIN RESPONSE:", data);
-        throw new Error("Token not found");
-      }
+     
+     if (msg.includes("user-not-found")) {
+       setServerError("Bu email ile kullanıcı bulunamadı.");
+       return;
+     }
+     if (msg.includes("wrong-password") || msg.includes("invalid-credential")) {
+       setServerError("Email veya şifre hatalı.");
+       return;
+     }
+     if (msg.includes("too-many-requests")) {
+       setServerError("Çok fazla deneme yapıldı. Biraz sonra tekrar deneyin.");
+       return;
+     }
 
-      localStorage.setItem("petlove-token", token);
-      window.dispatchEvent(new Event("petlove-auth-changed"));
+  
+     if (msg.includes("email or password invalid")) {
+       setServerError("Email veya şifre hatalı (backend).");
+       return;
+     }
+     if (msg.includes("unauthorized") || msg.includes("401")) {
+       setServerError("Giriş başarısız (401). Tekrar deneyin.");
+       return;
+     }
 
-      navigate("/profile", { replace: true });
-    } catch (err) {
-      console.log("LOGIN ERROR:", err);
-      const msg = String(err?.message || "");
+     setServerError("Giriş başarısız. Lütfen tekrar deneyin.");
+   }
+ };
 
-      if (msg.toLowerCase().includes("service not found")) {
-        setServerError("Login servisi bulunamadı. Endpoint kontrol etmeliyiz.");
-      } else {
-        setServerError("Email veya şifre hatalı.");
-      }
-    }
-  };
 
   return (
     <div className={s.page}>
@@ -108,6 +118,7 @@ export default function Login() {
                 className={s.input}
                 type="email"
                 placeholder="Enter your email"
+                autoComplete="email"
                 {...register("email")}
               />
               {errors.email && (
@@ -121,6 +132,7 @@ export default function Login() {
                 className={s.input}
                 type="password"
                 placeholder="Enter your password"
+                autoComplete="current-password"
                 {...register("password")}
               />
               {errors.password && (

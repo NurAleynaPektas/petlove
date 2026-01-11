@@ -1,5 +1,4 @@
 const BASE_URL = "https://petlove.b.goit.study/api";
-
 const TOKEN_KEY = "petlove-token";
 
 function getBackendToken() {
@@ -12,23 +11,16 @@ function getBackendToken() {
 
 function buildUrl(path, params = {}) {
   const url = new URL(BASE_URL + path);
-
   Object.entries(params || {}).forEach(([k, v]) => {
     if (v === undefined || v === null || v === "") return;
     url.searchParams.set(k, String(v));
   });
-
   return url;
 }
 
 async function parseErrorMessage(res) {
- 
   const raw = await res.text().catch(() => "");
-
- 
   if (!raw) return `Request failed: ${res.status}`;
-
-
   try {
     const j = JSON.parse(raw);
     return j?.message || j?.error || raw;
@@ -41,13 +33,8 @@ async function request(path, { method = "GET", params = {}, body } = {}) {
   const url = buildUrl(path, params);
 
   const headers = {};
+  if (body !== undefined) headers["Content-Type"] = "application/json";
 
- 
-  if (body !== undefined) {
-    headers["Content-Type"] = "application/json";
-  }
-
-  
   const token = getBackendToken();
   if (token) headers.Authorization = `Bearer ${token}`;
 
@@ -62,14 +49,11 @@ async function request(path, { method = "GET", params = {}, body } = {}) {
     throw new Error(msg);
   }
 
-
   if (res.status === 204) return null;
 
-  
   const text = await res.text().catch(() => "");
   if (!text) return null;
 
- 
   try {
     return JSON.parse(text);
   } catch {
@@ -77,36 +61,27 @@ async function request(path, { method = "GET", params = {}, body } = {}) {
   }
 }
 
-export function apiGet(path, params = {}) {
-  return request(path, { method: "GET", params });
-}
-
-export function apiPost(path, body = undefined, params = {}) {
-  return request(path, { method: "POST", params, body });
-}
-
-export function apiDelete(path, params = {}) {
-  return request(path, { method: "DELETE", params });
-}
-
-
-export function apiPatch(path, body = undefined, params = {}) {
-  return request(path, { method: "PATCH", params, body });
-}
-
+export const apiGet = (path, params = {}) =>
+  request(path, { method: "GET", params });
+export const apiPost = (path, body = undefined, params = {}) =>
+  request(path, { method: "POST", params, body });
+export const apiDelete = (path, params = {}) =>
+  request(path, { method: "DELETE", params });
+export const apiPatch = (path, body = undefined, params = {}) =>
+  request(path, { method: "PATCH", params, body });
 export function setToken(token) {
   try {
     if (!token) localStorage.removeItem(TOKEN_KEY);
     else localStorage.setItem(TOKEN_KEY, token);
+
+    window.dispatchEvent(new Event("petlove-auth-changed"));
   } catch {}
 }
 
 export function clearToken() {
   try {
     localStorage.removeItem(TOKEN_KEY);
-  } catch {}
-}
 
-export function getToken() {
-  return getBackendToken();
+    window.dispatchEvent(new Event("petlove-auth-changed"));
+  } catch {}
 }

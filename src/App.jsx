@@ -9,11 +9,14 @@ import Friends from "./pages/Friends";
 import Notices from "./pages/Notices";
 import Profile from "./pages/Profile";
 
+import ProtectedRoute from "./components/layout/ProtectedRoute";
+
 export default function App() {
   return (
     <Routes>
       <Route element={<MainLayout />}>
         <Route path="/" element={<Navigate to="/home" replace />} />
+
         {/* Pages */}
         <Route path="/home" element={<Home />} />
         <Route path="/news" element={<News />} />
@@ -23,9 +26,25 @@ export default function App() {
         {/* Auth */}
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
-        {/* Other */}
-        <Route path="/profile" element={<Profile />} />
-        <Route path="/add-pet" element={<h1>Add Pet</h1>} />
+
+        {/* Protected */}
+        <Route
+          path="/profile"
+          element={
+            <ProtectedRoute>
+              <Profile />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/add-pet"
+          element={
+            <ProtectedRoute>
+              <h1>Add Pet</h1>
+            </ProtectedRoute>
+          }
+        />
+
         {/* Fallback */}
         <Route path="*" element={<Navigate to="/home" replace />} />
       </Route>

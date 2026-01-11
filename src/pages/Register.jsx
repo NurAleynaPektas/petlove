@@ -3,7 +3,9 @@ import { useNavigate, NavLink } from "react-router-dom";
 import { useForm } from "react-hook-form";
 import { yupResolver } from "@hookform/resolvers/yup";
 import * as yup from "yup";
-import { apiPost } from "../services/api";
+import { createUserWithEmailAndPassword, updateProfile } from "firebase/auth";
+import { auth } from "../services/firebase";
+import { backendSignup } from "../services/auth";
 import s from "./Register.module.css";
 import catImg from "../assets/loginKedi.png";
 
@@ -68,44 +70,40 @@ export default function Register() {
     const phone = values.phone.trim();
 
     try {
-      
-      const data = await apiPost("/users/signup", { name, email, password });
+      // 1) Firebase register
+      const cred = await createUserWithEmailAndPassword(auth, email, password);
 
-      const token =
-        data?.token ||
-        data?.accessToken ||
-        data?.data?.token ||
-        data?.data?.accessToken ||
-        data?.result?.token ||
-        data?.result?.accessToken;
+      try {
+        await updateProfile(cred.user, { displayName: name });
+      } catch {}
 
-      if (!token) {
-        console.log("REGISTER BACKEND RESPONSE:", data);
-        throw new Error("Token not found in /users/signup response");
-      }
+      // 2) Backend signup (token burada set edilecek)
+      await backendSignup({ name, email, password });
 
-      localStorage.setItem("petlove-token", token);
-      window.dispatchEvent(new Event("petlove-auth-changed"));
-
+      // 3) phone'u local profile cache'ine yaz
       const prev = safeReadProfile();
       safeWriteProfile({ ...prev, phone: phone || "" });
 
+      // 4) profile'a git
       navigate("/profile", { replace: true });
     } catch (err) {
       console.log("REGISTER ERROR:", err);
-      const msg = String(err?.message || "");
+      const msg = String(err?.message || "").toLowerCase();
 
-      if (msg.includes("409") || msg.toLowerCase().includes("already")) {
+      if (msg.includes("email-already-in-use")) {
         setServerError("Bu email zaten kullanılıyor.");
-      } else if (msg.toLowerCase().includes("service not found")) {
-        setServerError(
-          "Register servisi bulunamadı. Endpoint kontrol etmeliyiz."
-        );
+      } else if (msg.includes("invalid-email")) {
+        setServerError("Email formatı geçersiz.");
+      } else if (msg.includes("weak-password")) {
+        setServerError("Şifre çok zayıf. En az 7 karakter olmalı.");
+      } else if (msg.includes("password field is required")) {
+        setServerError("Backend signup şifre istiyor. Şifreyi kontrol et.");
       } else {
         setServerError("Kayıt başarısız. Lütfen tekrar deneyin.");
       }
     }
   };
+
 
   return (
     <div className={s.page}>

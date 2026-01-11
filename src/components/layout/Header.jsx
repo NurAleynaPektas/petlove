@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import { NavLink } from "react-router-dom";
 import { useAuth } from "../../app/AuthContext";
+import { backendSignout } from "../../services/auth";
 import s from "./Header.module.css";
 
 const PROFILE_LS_KEY = "petlove-profile";
@@ -34,16 +35,16 @@ export default function Header() {
 
   if (!ready) return null;
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
     try {
-      localStorage.removeItem("petlove-token");
+      // ✅ Backend signout + Firebase signOut
+      await backendSignout();
 
-      // (opsiyonel ama tavsiye) tam temizlik:
+      // ✅ UI cache temizliği (opsiyonel ama iyi)
       localStorage.removeItem("petlove-profile");
       localStorage.removeItem("petlove-favorites");
       localStorage.removeItem("petlove-viewed");
 
-      window.dispatchEvent(new Event("petlove-auth-changed"));
       window.dispatchEvent(new Event("petlove-profile-changed"));
       window.dispatchEvent(new Event("petlove-favs-changed"));
       window.dispatchEvent(new Event("petlove-viewed-changed"));
