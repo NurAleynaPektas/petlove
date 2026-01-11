@@ -2,12 +2,19 @@ import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../app/AuthContext";
 import { backendSignout } from "../services/auth";
+import {
+  getUserStorageId,
+  favKey,
+  viewedKey,
+  readFavs,
+  readViewed,
+  writeFavs,
+  writeViewed,
+  migrateLegacyToUser,
+} from "../utils/userStorage";
 import s from "./Profile.module.css";
 
 const PROFILE_LS_KEY = "petlove-profile";
-
-const LS_FAV_KEY = "petlove-favorites";
-const LS_VIEWED_KEY = "petlove-viewed";
 
 function safeReadProfile() {
   try {
@@ -21,22 +28,6 @@ function safeReadProfile() {
 
 function safeWriteProfile(obj) {
   localStorage.setItem(PROFILE_LS_KEY, JSON.stringify(obj));
-}
-
-function safeReadArr(key) {
-  try {
-    const raw = localStorage.getItem(key);
-    const arr = raw ? JSON.parse(raw) : [];
-    return Array.isArray(arr) ? arr : [];
-  } catch {
-    return [];
-  }
-}
-
-function safeWriteArr(key, arr) {
-  localStorage.setItem(key, JSON.stringify(arr));
-  window.dispatchEvent(new Event("petlove-favs-changed"));
-  window.dispatchEvent(new Event("petlove-viewed-changed"));
 }
 
 function fileToDataUrl(file) {
@@ -69,6 +60,15 @@ function Stars({ value = 1 }) {
 export default function Profile() {
   const { user, ready } = useAuth();
   const navigate = useNavigate();
+
+  const userId = useMemo(() => getUserStorageId(user), [user]);
+
+
+  useEffect(() => {
+    if (!ready) return;
+    if (!user) return;
+    migrateLegacyToUser(user);
+  }, [ready, user]);
 
   const [tab, setTab] = useState("favorites");
   const [name, setName] = useState("User");
@@ -125,10 +125,15 @@ export default function Profile() {
     setAvatarUrl(lsAvatar || user?.photoURL || "");
   }, [ready, user]);
 
-  
   const syncLists = () => {
-    const favs = safeReadArr(LS_FAV_KEY);
-    const v = safeReadArr(LS_VIEWED_KEY);
+    if (!userId) {
+      setFavorites([]);
+      setViewed([]);
+      return;
+    }
+
+    const favs = readFavs(userId);
+    const v = readViewed(userId);
 
     favs.sort((a, b) => Number(b?.ts || 0) - Number(a?.ts || 0));
     v.sort((a, b) => Number(b?.ts || 0) - Number(a?.ts || 0));
@@ -139,13 +144,16 @@ export default function Profile() {
 
   useEffect(() => {
     if (!ready) return;
-
     syncLists();
 
     const onFav = () => syncLists();
     const onViewed = () => syncLists();
+
     const onStorage = (e) => {
-      if (e.key === LS_FAV_KEY || e.key === LS_VIEWED_KEY) syncLists();
+      if (!userId) return;
+      const fk = favKey(userId);
+      const vk = viewedKey(userId);
+      if (e.key === fk || e.key === vk) syncLists();
     };
 
     window.addEventListener("petlove-favs-changed", onFav);
@@ -157,7 +165,7 @@ export default function Profile() {
       window.removeEventListener("petlove-viewed-changed", onViewed);
       window.removeEventListener("storage", onStorage);
     };
-  }, [ready]);
+  }, [ready, userId]);
 
   useEffect(() => {
     function onKeyDown(e) {
@@ -198,13 +206,8 @@ export default function Profile() {
   async function handleLogout() {
     try {
       await backendSignout();
-
       localStorage.removeItem("petlove-profile");
-      localStorage.removeItem("petlove-favorites");
-      localStorage.removeItem("petlove-viewed");
       window.dispatchEvent(new Event("petlove-profile-changed"));
-      window.dispatchEvent(new Event("petlove-favs-changed"));
-      window.dispatchEvent(new Event("petlove-viewed-changed"));
 
       navigate("/home");
     } catch (e) {
@@ -287,17 +290,18 @@ export default function Profile() {
   function handleRemoveFromList(card) {
     const id = String(card?.id || "");
     if (!id) return;
+    if (!userId) return;
 
     if (tab === "favorites") {
       const next = favorites.filter((x) => String(x?.id) !== id);
       setFavorites(next);
-      safeWriteArr(LS_FAV_KEY, next);
+      writeFavs(userId, next);
       return;
     }
 
     const next = viewed.filter((x) => String(x?.id) !== id);
     setViewed(next);
-    safeWriteArr(LS_VIEWED_KEY, next);
+    writeViewed(userId, next);
   }
 
   function handleLearnMoreFromProfile() {

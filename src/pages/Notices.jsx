@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { useAuth } from "../app/AuthContext";
 import {
   fetchNotices,
   fetchNoticeCategories,
@@ -9,22 +10,17 @@ import {
   addFavoriteNotice,
   removeFavoriteNotice,
 } from "../services/notices";
+import {
+  getUserStorageId,
+  migrateLegacyToUser,
+  readFavs,
+  writeFavs,
+  readViewed,
+  writeViewed,
+} from "../utils/userStorage";
 import s from "./Notices.module.css";
 
-/* ---------------- LS keys ---------------- */
-const LS_FAV_KEY = "petlove-favorites";
-const LS_VIEWED_KEY = "petlove-viewed";
-
-/* ---------- auth helper ---------- */
-function hasToken() {
-  try {
-    return Boolean(localStorage.getItem("petlove-token"));
-  } catch {
-    return false;
-  }
-}
-
-/* ---------- helpers ---------- */
+/*helpers */
 function normalizeArray(data) {
   if (Array.isArray(data)) return data;
   if (Array.isArray(data?.result)) return data.result;
@@ -102,24 +98,6 @@ function toStars(val) {
   return Math.max(1, Math.min(5, Math.round(safe)));
 }
 
-/* ---------------- LS helpers ---------------- */
-function safeReadLS(key) {
-  try {
-    const raw = localStorage.getItem(key);
-    const arr = raw ? JSON.parse(raw) : [];
-    return Array.isArray(arr) ? arr : [];
-  } catch {
-    return [];
-  }
-}
-
-function safeWriteLS(key, arr) {
-  localStorage.setItem(key, JSON.stringify(arr));
-  // Profile ekranı anında güncellensin
-  window.dispatchEvent(new Event("petlove-favs-changed"));
-  window.dispatchEvent(new Event("petlove-viewed-changed"));
-}
-
 function toCardPayload(it) {
   const id = getNoticeId(it);
   const title = it?.title || it?.name || "Pet";
@@ -156,12 +134,19 @@ function removeById(list, id) {
   return list.filter((x) => String(x?.id) !== String(id));
 }
 
-/* ---------- component ---------- */
+/* component  */
 export default function Notices() {
   const navigate = useNavigate();
+  const { user, ready, isAuthed } = useAuth();
 
-  // ✅ token bazlı auth state
-  const [isAuthed, setIsAuthed] = useState(() => hasToken());
+  const userId = useMemo(() => getUserStorageId(user), [user]);
+
+  // login olduktan sonra
+  useEffect(() => {
+    if (!ready) return;
+    if (!user) return;
+    migrateLegacyToUser(user);
+  }, [ready, user]);
 
   // filters
   const [search, setSearch] = useState("");
@@ -199,20 +184,6 @@ export default function Notices() {
     { key: "expensive", label: "Expensive" },
   ];
 
-  // ✅ token değişince UI güncellensin (Profile logout dispatch ediyor)
-  useEffect(() => {
-    function onAuthChanged() {
-      setIsAuthed(hasToken());
-    }
-    window.addEventListener("petlove-auth-changed", onAuthChanged);
-    window.addEventListener("storage", onAuthChanged);
-    return () => {
-      window.removeEventListener("petlove-auth-changed", onAuthChanged);
-      window.removeEventListener("storage", onAuthChanged);
-    };
-  }, []);
-
-  /* ---------- fetch dropdowns ---------- */
   useEffect(() => {
     let alive = true;
 
@@ -262,12 +233,12 @@ export default function Notices() {
     };
   }, []);
 
-  /* ---------- reset page on filter change ---------- */
+ 
   useEffect(() => {
     setPage(1);
   }, [search, category, sex, species, location, sort]);
 
-  /* ---------- fetch notices ---------- */
+  
   useEffect(() => {
     let alive = true;
 
@@ -289,8 +260,7 @@ export default function Notices() {
 
         const normalized = normalizePaged(data);
         if (!alive) return;
-
-        const favs = safeReadLS(LS_FAV_KEY);
+        const favs = userId ? readFavs(userId) : [];
         const favIds = new Set(favs.map((x) => String(x?.id)));
 
         const merged = normalized.items.map((it) => {
@@ -313,22 +283,24 @@ export default function Notices() {
     return () => {
       alive = false;
     };
-  }, [page, search, category, sex, species, location, sort]);
+  }, [page, search, category, sex, species, location, sort, userId]);
 
-  /* ---------- favorites ---------- */
+  /* favorites*/
   async function toggleFavorite(item) {
     const id = getNoticeId(item);
     if (!id) return;
 
-    // ✅ auth kontrolü token ile
     if (!isAuthed) {
+      setShowAuthModal(true);
+      return;
+    }
+    if (!userId) {
       setShowAuthModal(true);
       return;
     }
 
     const wasFav = Boolean(item?.favorite || item?.isFavorite);
 
-    // optimistic UI
     setItems((prev) =>
       prev.map((x) => {
         const xid = getNoticeId(x);
@@ -337,7 +309,7 @@ export default function Notices() {
       })
     );
 
-    // modal açıkken onu da güncelle
+    
     setActiveNotice((prev) => {
       if (!prev) return prev;
       const pid = getNoticeId(prev);
@@ -345,58 +317,73 @@ export default function Notices() {
       return { ...prev, favorite: !wasFav, isFavorite: !wasFav };
     });
 
-    // LS güncelle (optimistic)
+   
     const payload = toCardPayload(item);
-    const favsPrev = safeReadLS(LS_FAV_KEY);
+    const favsPrev = readFavs(userId);
     const favsNext = wasFav
       ? removeById(favsPrev, id)
       : upsertById(favsPrev, payload);
-    safeWriteLS(LS_FAV_KEY, favsNext);
+
+    writeFavs(userId, favsNext);
 
     try {
       if (wasFav) await removeFavoriteNotice(id);
       else await addFavoriteNotice(id);
     } catch (e) {
-      // rollback UI
-      setItems((prev) =>
-        prev.map((x) => {
-          const xid = getNoticeId(x);
-          if (xid !== id) return x;
-          return { ...x, favorite: wasFav, isFavorite: wasFav };
-        })
-      );
-      setActiveNotice((prev) => {
-        if (!prev) return prev;
-        const pid = getNoticeId(prev);
-        if (pid !== id) return prev;
-        return { ...prev, favorite: wasFav, isFavorite: wasFav };
-      });
+  const msg = String(e?.message || "").toLowerCase();
 
-      // rollback LS
-      safeWriteLS(LS_FAV_KEY, favsPrev);
-
-      alert(e?.message || "Favorite işlemi başarısız.");
-    }
+  if (!wasFav && (msg.includes("409") || msg.includes("conflict") || msg.includes("already") || msg.includes("exist"))) {
+   
+    return;
   }
 
-  /* ---------- viewed ---------- */
+  if (wasFav && (msg.includes("404") || msg.includes("not found"))) {
+    return;
+  }
+
+
+  setItems((prev) =>
+    prev.map((x) => {
+      const xid = getNoticeId(x);
+      if (xid !== id) return x;
+      return { ...x, favorite: wasFav, isFavorite: wasFav };
+    })
+  );
+
+  setActiveNotice((prev) => {
+    if (!prev) return prev;
+    const pid = getNoticeId(prev);
+    if (pid !== id) return prev;
+    return { ...prev, favorite: wasFav, isFavorite: wasFav };
+  });
+
+  writeFavs(userId, favsPrev);
+
+  alert(e?.message || "Favorite işlemi başarısız.");
+}
+
+  }
+
+  /* viewed */
   function pushViewed(it) {
+    if (!userId) return;
+
     const payload = toCardPayload(it);
     if (!payload.id) return;
 
-    const prev = safeReadLS(LS_VIEWED_KEY);
+    const prev = readViewed(userId);
     const next = upsertById(prev, payload);
-    safeWriteLS(LS_VIEWED_KEY, next);
+    writeViewed(userId, next);
   }
 
-  /* ---------- pagination ---------- */
+  /* pagination */
   const pages = useMemo(() => {
     const arr = [];
     for (let i = 1; i <= totalPages; i++) arr.push(i);
     return arr;
   }, [totalPages]);
 
-  /* ---------- modal controls ---------- */
+  /*  modal controls */
   function closeModals() {
     setActiveNotice(null);
     setShowAuthModal(false);
@@ -727,7 +714,7 @@ export default function Notices() {
   );
 }
 
-/* ---------- detail modal ---------- */
+/* detail modal */
 function NoticeDetailModal({ it, onToggleFav, onContact }) {
   const title = it?.title || it?.name || "Pet";
   const img = it?.imgURL || it?.imgUrl || it?.imageUrl || it?.photo || "";
@@ -783,8 +770,7 @@ function NoticeDetailModal({ it, onToggleFav, onContact }) {
 
       <div className={s.detailBtns}>
         <button className={s.btnPrimary} onClick={onToggleFav} type="button">
-          {fav ? "Added ❤️" : "Add to "}
-          <span className={s.btnHeart}>♡</span>
+          {fav ? "Added ❤️" : "Add to "} <span className={s.btnHeart}>♡</span>
         </button>
         <button className={s.btnGhost} onClick={onContact} type="button">
           Contact

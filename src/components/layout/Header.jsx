@@ -37,18 +37,9 @@ export default function Header() {
 
   const handleLogout = async () => {
     try {
-      // ✅ Backend signout + Firebase signOut
       await backendSignout();
-
-      // ✅ UI cache temizliği (opsiyonel ama iyi)
       localStorage.removeItem("petlove-profile");
-      localStorage.removeItem("petlove-favorites");
-      localStorage.removeItem("petlove-viewed");
-
       window.dispatchEvent(new Event("petlove-profile-changed"));
-      window.dispatchEvent(new Event("petlove-favs-changed"));
-      window.dispatchEvent(new Event("petlove-viewed-changed"));
-
       close();
     } catch (err) {
       console.error("Logout error:", err);
