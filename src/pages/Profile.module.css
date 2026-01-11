@@ -73,7 +73,7 @@
 }
 
 .input {
-  width: 100%;
+  width: 90%;
   height: 40px;
   border-radius: 999px;
   border: 1px solid rgba(0, 0, 0, 0.12);
@@ -487,7 +487,6 @@
   opacity: 0.85;
 }
 
-
 .modalAvatarRow {
   display: grid;
   justify-items: center;
@@ -545,6 +544,7 @@
   .modal {
     padding: 20px;
   }
+ 
 }
 
 /* Desktop */
