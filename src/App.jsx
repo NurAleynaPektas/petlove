@@ -8,7 +8,7 @@ import News from "./pages/News";
 import Friends from "./pages/Friends";
 import Notices from "./pages/Notices";
 import Profile from "./pages/Profile";
-
+import AddPet from "./pages/AddPet";
 import ProtectedRoute from "./components/layout/ProtectedRoute";
 
 export default function App() {
@@ -40,7 +40,7 @@ export default function App() {
           path="/add-pet"
           element={
             <ProtectedRoute>
-              <h1>Add Pet</h1>
+              <AddPet />
             </ProtectedRoute>
           }
         />
