@@ -9,6 +9,7 @@ import {
   fetchCities,
   addFavoriteNotice,
   removeFavoriteNotice,
+  fetchNoticeById,
 } from "../services/notices";
 import {
   getUserStorageId,
@@ -153,18 +154,18 @@ export default function Notices() {
   const [category, setCategory] = useState("");
   const [sex, setSex] = useState("");
   const [species, setSpecies] = useState("");
-  const [location, setLocation] = useState("");
+  const [locationId, setLocationId] = useState(""); // ✅ ID
   const [sort, setSort] = useState("popular");
 
   // pagination
   const [page, setPage] = useState(1);
-  const limit = 6;
+  const perPage = 6;
 
   // dropdown data
   const [categories, setCategories] = useState([]);
   const [sexes, setSexes] = useState([]);
   const [speciesList, setSpeciesList] = useState([]);
-  const [cities, setCities] = useState([]);
+  const [cities, setCities] = useState([]); // ✅ [{id,label}]
 
   // notices
   const [items, setItems] = useState([]);
@@ -215,13 +216,27 @@ export default function Notices() {
 
         if (c4.status === "fulfilled") {
           const raw = normalizeArray(c4.value);
+
           const mapped = raw
             .map((x) => {
-              if (typeof x === "string") return x;
-              return x?.cityEn || x?.cityUA || x?.cityUa || x?.name || "";
+              if (!x || typeof x !== "object") return null;
+              const id = x?._id;
+              const label =
+                x?.cityEn || x?.cityUA || x?.cityUa || x?.name || "";
+              if (!id || !label) return null;
+              return { id: String(id), label: String(label) };
             })
             .filter(Boolean);
-          setCities(Array.from(new Set(mapped)));
+
+          const uniq = [];
+          const seen = new Set();
+          for (const c of mapped) {
+            if (seen.has(c.id)) continue;
+            seen.add(c.id);
+            uniq.push(c);
+          }
+
+          setCities(uniq);
         }
       } catch {
         // ignore
@@ -233,12 +248,10 @@ export default function Notices() {
     };
   }, []);
 
- 
   useEffect(() => {
     setPage(1);
-  }, [search, category, sex, species, location, sort]);
+  }, [search, category, sex, species, locationId, sort]);
 
-  
   useEffect(() => {
     let alive = true;
 
@@ -249,17 +262,18 @@ export default function Notices() {
       try {
         const data = await fetchNotices({
           page,
-          limit,
+          perPage,
           search: search.trim(),
           category,
           sex,
           species,
-          location,
+          locationId,
           sort,
         });
 
         const normalized = normalizePaged(data);
         if (!alive) return;
+
         const favs = userId ? readFavs(userId) : [];
         const favIds = new Set(favs.map((x) => String(x?.id)));
 
@@ -283,24 +297,21 @@ export default function Notices() {
     return () => {
       alive = false;
     };
-  }, [page, search, category, sex, species, location, sort, userId]);
+  }, [page, search, category, sex, species, locationId, sort, userId, perPage]);
 
   /* favorites*/
   async function toggleFavorite(item) {
     const id = getNoticeId(item);
     if (!id) return;
 
-    if (!isAuthed) {
-      setShowAuthModal(true);
-      return;
-    }
-    if (!userId) {
+    if (!isAuthed || !userId) {
       setShowAuthModal(true);
       return;
     }
 
     const wasFav = Boolean(item?.favorite || item?.isFavorite);
 
+    // optimistic UI
     setItems((prev) =>
       prev.map((x) => {
         const xid = getNoticeId(x);
@@ -309,7 +320,6 @@ export default function Notices() {
       })
     );
 
-    
     setActiveNotice((prev) => {
       if (!prev) return prev;
       const pid = getNoticeId(prev);
@@ -317,7 +327,7 @@ export default function Notices() {
       return { ...prev, favorite: !wasFav, isFavorite: !wasFav };
     });
 
-   
+    // local storage
     const payload = toCardPayload(item);
     const favsPrev = readFavs(userId);
     const favsNext = wasFav
@@ -330,38 +340,41 @@ export default function Notices() {
       if (wasFav) await removeFavoriteNotice(id);
       else await addFavoriteNotice(id);
     } catch (e) {
-  const msg = String(e?.message || "").toLowerCase();
+      const msg = String(e?.message || "").toLowerCase();
 
-  if (!wasFav && (msg.includes("409") || msg.includes("conflict") || msg.includes("already") || msg.includes("exist"))) {
-   
-    return;
-  }
+      if (
+        !wasFav &&
+        (msg.includes("409") ||
+          msg.includes("conflict") ||
+          msg.includes("already") ||
+          msg.includes("exist"))
+      ) {
+        return;
+      }
 
-  if (wasFav && (msg.includes("404") || msg.includes("not found"))) {
-    return;
-  }
+      if (wasFav && (msg.includes("404") || msg.includes("not found"))) {
+        return;
+      }
 
+      // rollback
+      setItems((prev) =>
+        prev.map((x) => {
+          const xid = getNoticeId(x);
+          if (xid !== id) return x;
+          return { ...x, favorite: wasFav, isFavorite: wasFav };
+        })
+      );
 
-  setItems((prev) =>
-    prev.map((x) => {
-      const xid = getNoticeId(x);
-      if (xid !== id) return x;
-      return { ...x, favorite: wasFav, isFavorite: wasFav };
-    })
-  );
+      setActiveNotice((prev) => {
+        if (!prev) return prev;
+        const pid = getNoticeId(prev);
+        if (pid !== id) return prev;
+        return { ...prev, favorite: wasFav, isFavorite: wasFav };
+      });
 
-  setActiveNotice((prev) => {
-    if (!prev) return prev;
-    const pid = getNoticeId(prev);
-    if (pid !== id) return prev;
-    return { ...prev, favorite: wasFav, isFavorite: wasFav };
-  });
-
-  writeFavs(userId, favsPrev);
-
-  alert(e?.message || "Favorite işlemi başarısız.");
-}
-
+      writeFavs(userId, favsPrev);
+      alert(e?.message || "Favorite işlemi başarısız.");
+    }
   }
 
   /* viewed */
@@ -383,7 +396,7 @@ export default function Notices() {
     return arr;
   }, [totalPages]);
 
-  /*  modal controls */
+  /* modal controls */
   function closeModals() {
     setActiveNotice(null);
     setShowAuthModal(false);
@@ -397,13 +410,28 @@ export default function Notices() {
     return () => window.removeEventListener("keydown", onKeyDown);
   }, []);
 
-  function onLearnMore(it) {
+  async function onLearnMore(it) {
     if (!isAuthed) {
       setShowAuthModal(true);
       return;
     }
+
     pushViewed(it);
+
+    // hemen aç
     setActiveNotice(it);
+
+    // contact vs için detay çekmeyi dene
+    const id = getNoticeId(it);
+    if (!id) return;
+
+    try {
+      const detail = await fetchNoticeById(id);
+      const full = detail?.result || detail?.data || detail;
+      if (full) setActiveNotice(full);
+    } catch {
+      // ignore
+    }
   }
 
   function onAuthGoLogin() {
@@ -417,8 +445,8 @@ export default function Notices() {
   }
 
   function onContact(it) {
-    const email = it?.email;
-    const phone = it?.phone;
+    const email = it?.user?.email || it?.email;
+    const phone = it?.user?.phone || it?.phone;
 
     if (email) {
       window.location.href = `mailto:${email}`;
@@ -489,15 +517,16 @@ export default function Notices() {
             ))}
           </select>
 
+          {/* ✅ locationId ile çalışır */}
           <select
             className={s.select}
-            value={location}
-            onChange={(e) => setLocation(e.target.value)}
+            value={locationId}
+            onChange={(e) => setLocationId(e.target.value)}
           >
             <option value="">Location</option>
             {cities.map((c) => (
-              <option key={c} value={c}>
-                {c}
+              <option key={c.id} value={c.id}>
+                {c.label}
               </option>
             ))}
           </select>
