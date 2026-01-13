@@ -157,7 +157,7 @@ export default function Header() {
                 }
                 onClick={close}
               >
-                Notices
+                Find Pet
               </NavLink>
 
               <NavLink
@@ -167,58 +167,44 @@ export default function Header() {
                 }
                 onClick={close}
               >
-                Friends
+                Our Friends
               </NavLink>
             </nav>
-
-            
 
             {!isAuthed ? (
               <div className={s.menuAuth}>
                 <NavLink
                   to="/login"
                   className={({ isActive }) =>
-                    isActive ? s.menuActive : s.menuLink
+                    `${s.menuLink} ${s.loginBtn} ${
+                      isActive ? s.menuActive : ""
+                    }`
                   }
                   onClick={close}
                 >
-                  Log in
+                  LOG IN
                 </NavLink>
 
                 <NavLink
                   to="/register"
-                  className={ ({ isActive } ) =>
-                    isActive ? s.menuActive : s.menuLink
+                  className={({ isActive }) =>
+                    `${s.menuLink} ${s.registerBtn} ${
+                      isActive ? s.menuActive : ""
+                    }`
                   }
                   onClick={close}
                 >
-                  Registration
+                  REGISTRATION
                 </NavLink>
               </div>
             ) : (
               <div className={s.menuUser}>
-                <NavLink
-                  to="/profile"
-                  className={s.menuUserBar}
-                  onClick={close}
-                >
-                  <img
-                    key={avatarSrc + "-m"}
-                    className={s.avatar}
-                    src={avatarSrc}
-                    alt="User avatar"
-                  />
-                  <span className={s.userName}>
-                    {user?.name || user?.displayName || "User"}
-                  </span>
-                </NavLink>
-
                 <button
                   type="button"
                   className={s.menuLogout}
                   onClick={handleLogout}
                 >
-                  Log out
+                  LOG OUT
                 </button>
               </div>
             )}

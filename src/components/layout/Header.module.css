@@ -26,7 +26,6 @@
   gap: 12px;
 }
 
-
 .pill,
 .pillActive {
   text-decoration: none;
@@ -133,7 +132,6 @@
   line-height: 1;
 }
 
-
 .overlay {
   position: fixed;
   inset: 0;
@@ -145,81 +143,100 @@
   position: absolute;
   top: 0;
   right: 0;
-  width: 50%;
+  width: min(320px, 65vw);
   height: 100%;
   background: var(--accent);
   padding: 16px;
+  display: flex;
+  flex-direction: column;
+ 
 }
-
 .close {
   position: absolute;
-  right: 16px;
+  right: 30px;
   background: none;
   border: none;
   font-size: 20px;
   cursor: pointer;
   color: #fff;
+  top: 20px;
 }
 
 .mobileNav {
-  
+  flex: 1;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   gap: 16px;
-  margin-top: 24px;
+  margin-top: 0;
 }
 
 .menuAuth {
-  margin-top: 18px;
+  margin-top: auto;
   display: flex;
   flex-direction: column;
+  align-items: center;
   gap: 12px;
+  padding-bottom: 60px;
 }
 
 .menuLink,
 .menuActive {
-  border: 2px solid rgba(250, 247, 247, 0.226);
+  border: 2px solid rgba(250, 247, 247, 0.222);
   text-decoration: none;
-  font-size: 18px;
+  font-size: 14px;
   color: #fff;
   border-radius: 999px;
-  padding: 10px 12px;
+  padding: 6px 9px;
   display: flex;
   justify-content: center;
   align-items: center;
+  width: 100px;
 }
-
+.registerBtn {
+  width: 150px;
+  background: #fff;
+  color: var(--accent);
+}
+.loginBtn{
+  width: 150px;
+}
 .menuActive {
-  border: 2px solid rgba(250, 247, 247, 0.968);
+  border: 2px solid rgba(250, 247, 247, 0.712);
   font-weight: 700;
 }
-
 
 .menuUser {
   margin-top: 18px;
   display: grid;
   gap: 12px;
+  margin-bottom: 60px;
 }
 
 .menuUserBar {
+  margin: 0 auto;
   display: flex;
   align-items: center;
+  justify-content: center;
   gap: 10px;
   text-decoration: none;
   color: var(--text);
-  padding: 10px 12px;
+  padding: 8px 10px;
   border-radius: 14px;
   border: 1px solid rgba(38, 38, 38, 0.12);
 }
 
 .menuLogout {
-  padding: 12px;
-  border-radius: 14px;
-  border: 1px solid rgba(38, 38, 38, 0.12);
-  background: transparent;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 12px 14px;
+  border-radius: 999px;
+  border: 2px solid rgba(250, 247, 247, 0.551);
   cursor: pointer;
+  background: #fff;
+  color: var(--accent);
 }
 
 /* TABLET*/
@@ -230,6 +247,13 @@
   .userRow {
     display: flex;
   }
+  .menuAuth{
+    display: flex;
+    flex-direction: row;
+    
+
+  }
+ 
 }
 
 /* DESKTOP*/
@@ -241,5 +265,4 @@
   .burger {
     display: none;
   }
-
 }
