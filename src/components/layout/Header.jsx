@@ -171,7 +171,7 @@ export default function Header() {
               </NavLink>
             </nav>
 
-            <div className={s.divider} />
+            
 
             {!isAuthed ? (
               <div className={s.menuAuth}>
@@ -187,7 +187,7 @@ export default function Header() {
 
                 <NavLink
                   to="/register"
-                  className={({ isActive }) =>
+                  className={ ({ isActive } ) =>
                     isActive ? s.menuActive : s.menuLink
                   }
                   onClick={close}
