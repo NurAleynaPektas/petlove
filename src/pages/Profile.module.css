@@ -532,6 +532,122 @@
   font-size: 14px;
   line-height: 1;
 }
+/* ---------- MY PETS (MOBILE FIRST) ---------- */
+
+.petsList {
+  display: grid;
+  gap: 16px;
+  margin-top: 12px;
+}
+
+.petCard {
+  position: relative;
+  background: #fff;
+  border: 1px solid rgba(0, 0, 0, 0.06);
+  border-radius: 22px;
+  padding: 16px 16px;
+  box-shadow: 0 2px 14px rgba(0, 0, 0, 0.03);
+}
+
+.petMain {
+  display: flex;
+  gap: 14px;
+  align-items: flex-start;
+  min-width: 0;
+  padding-right: 52px; /* trash için yer */
+}
+
+.petAvatarWrap {
+  width: 72px;
+  height: 72px;
+  border-radius: 999px;
+  overflow: hidden;
+  flex: 0 0 72px;
+  background: rgba(255, 200, 50, 0.14);
+}
+
+.petAvatar {
+  width: 80%;
+  height: 80%;
+  object-fit: cover;
+  display: block;
+}
+
+.petAvatarFallback {
+  width: 100%;
+  height: 100%;
+  display: grid;
+  place-items: center;
+  font-size: 26px;
+  opacity: 0.8;
+}
+
+.petTitle {
+  margin: 0 0 10px 0;
+  font-size: 16px;
+  font-weight: 700;
+  color: #111;
+  line-height: 1.2;
+
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* screenshot gibi: Name / Birthday / Sex üstte, Species altta */
+.petMetaGrid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px 14px;
+}
+
+.petMetaItem:last-child {
+  grid-column: 1 / -1;
+}
+
+.petMetaLabel {
+  font-size: 6px;
+  color: rgba(0, 0, 0, 0.45);
+  margin-bottom: 4px;
+}
+
+.petMetaValue {
+  font-size: 6px;
+  font-weight: 500;
+  color: rgba(0, 0, 0, 0.88);
+
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.petTrashBtn {
+  position: absolute;
+  right: 10px;
+  top: 10px;
+color: var(--accent);
+  width: 30px;
+  height: 30px;
+  border-radius: 999px;
+  border: none;
+  cursor: pointer;
+
+  background: rgba(255, 200, 50, 0.2);
+  display: grid;
+  place-items: center;
+
+  transition: transform 150ms ease, background 150ms ease;
+}
+
+.petTrashBtn:hover {
+  transform: translateY(-1px);
+  background: rgba(255, 200, 50, 0.28);
+}
+
+.petTrashIcon {
+  font-size: 16px;
+  line-height: 1;
+}
 
 /* Tablet */
 @media (min-width: 768px) {
@@ -544,7 +660,6 @@
   .modal {
     padding: 20px;
   }
- 
 }
 
 /* Desktop */

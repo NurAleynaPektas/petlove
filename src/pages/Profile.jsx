@@ -16,6 +16,7 @@ import s from "./Profile.module.css";
 
 const PROFILE_LS_KEY = "petlove-profile";
 
+/* ---------------- profile helpers ---------------- */
 function safeReadProfile() {
   try {
     const raw = localStorage.getItem(PROFILE_LS_KEY);
@@ -37,6 +38,36 @@ function fileToDataUrl(file) {
     r.onerror = reject;
     r.readAsDataURL(file);
   });
+}
+
+/* ---------------- my pets LS helpers ---------------- */
+function myPetsKey(userId) {
+  return userId ? `petlove-my-pets:${userId}` : "petlove-my-pets";
+}
+
+function readMyPets(userId) {
+  try {
+    const key = myPetsKey(userId);
+    const raw = localStorage.getItem(key);
+    const arr = raw ? JSON.parse(raw) : [];
+    return Array.isArray(arr) ? arr : [];
+  } catch {
+    return [];
+  }
+}
+
+function writeMyPets(userId, arr) {
+  const key = myPetsKey(userId);
+  localStorage.setItem(key, JSON.stringify(arr));
+}
+
+function toDDMMYYYY(val) {
+  if (!val) return "";
+  if (typeof val === "string" && val.includes("-")) {
+    const [y, m, d] = val.split("-");
+    if (y && m && d) return `${d}.${m}.${y}`;
+  }
+  return String(val);
 }
 
 function Stars({ value = 1 }) {
@@ -63,7 +94,6 @@ export default function Profile() {
 
   const userId = useMemo(() => getUserStorageId(user), [user]);
 
-
   useEffect(() => {
     if (!ready) return;
     if (!user) return;
@@ -88,6 +118,9 @@ export default function Profile() {
 
   const [favorites, setFavorites] = useState([]);
   const [viewed, setViewed] = useState([]);
+
+  // ✅ NEW
+  const [myPets, setMyPets] = useState([]);
 
   const emptyText = useMemo(() => {
     if (tab === "favorites") {
@@ -142,27 +175,45 @@ export default function Profile() {
     setViewed(v);
   };
 
+  const syncPets = () => {
+    const pets = readMyPets(userId);
+    // createdAt ISO string -> newest first
+    pets.sort((a, b) =>
+      String(b?.createdAt || "").localeCompare(String(a?.createdAt || ""))
+    );
+    setMyPets(pets);
+  };
+
   useEffect(() => {
     if (!ready) return;
+
     syncLists();
+    syncPets();
 
     const onFav = () => syncLists();
     const onViewed = () => syncLists();
+    const onPets = () => syncPets();
 
     const onStorage = (e) => {
-      if (!userId) return;
       const fk = favKey(userId);
       const vk = viewedKey(userId);
-      if (e.key === fk || e.key === vk) syncLists();
+      const pk = myPetsKey(userId);
+
+      if (e.key === fk || e.key === vk || e.key === pk) {
+        syncLists();
+        syncPets();
+      }
     };
 
     window.addEventListener("petlove-favs-changed", onFav);
     window.addEventListener("petlove-viewed-changed", onViewed);
+    window.addEventListener("petlove-my-pets-changed", onPets);
     window.addEventListener("storage", onStorage);
 
     return () => {
       window.removeEventListener("petlove-favs-changed", onFav);
       window.removeEventListener("petlove-viewed-changed", onViewed);
+      window.removeEventListener("petlove-my-pets-changed", onPets);
       window.removeEventListener("storage", onStorage);
     };
   }, [ready, userId]);
@@ -208,7 +259,6 @@ export default function Profile() {
       await backendSignout();
       localStorage.removeItem("petlove-profile");
       window.dispatchEvent(new Event("petlove-profile-changed"));
-
       navigate("/home");
     } catch (e) {
       console.error("Logout error:", e);
@@ -308,6 +358,16 @@ export default function Profile() {
     navigate("/notices");
   }
 
+  function handleDeleteMyPet(pet) {
+    const id = String(pet?.id || "");
+    if (!id) return;
+
+    const next = myPets.filter((x) => String(x?.id) !== id);
+    setMyPets(next);
+    writeMyPets(userId, next);
+    window.dispatchEvent(new Event("petlove-my-pets-changed"));
+  }
+
   return (
     <div className={s.page}>
       <div className={s.layout}>
@@ -352,7 +412,83 @@ export default function Profile() {
                 </button>
               </div>
 
-              <div className={s.petsList} />
+              {/* ✅ MY PETS (MOBILE LAYOUT) */}
+              <div className={s.petsList}>
+                {myPets.map((p) => {
+                  const img = p?.imgURL || p?.imgUrl || p?.img || "";
+                  const title = p?.title || "Untitled";
+                  const petName = p?.name || "—";
+                  const bday = toDDMMYYYY(p?.birthday) || "—";
+                  const sex =
+                    p?.gender === "female"
+                      ? "Female"
+                      : p?.gender === "male"
+                      ? "Male"
+                      : "Unknown";
+                  const species = p?.species ? String(p.species) : "—";
+
+                  return (
+                    <article key={p.id} className={s.petCard}>
+                      <div className={s.petMain}>
+                        <div className={s.petAvatarWrap}>
+                          {img ? (
+                            <img
+                              className={s.petAvatar}
+                              src={img}
+                              alt={title}
+                            />
+                          ) : (
+                            <div
+                              className={s.petAvatarFallback}
+                              aria-hidden="true"
+                            >
+                              🐾
+                            </div>
+                          )}
+                        </div>
+
+                        <div className={s.petContent}>
+                          <h3 className={s.petTitle}>{title}</h3>
+
+                          <div className={s.petMetaGrid}>
+                            <div className={s.petMetaItem}>
+                              <div className={s.petMetaLabel}>Name</div>
+                              <div className={s.petMetaValue}>{petName}</div>
+                            </div>
+
+                            <div className={s.petMetaItem}>
+                              <div className={s.petMetaLabel}>Birthday</div>
+                              <div className={s.petMetaValue}>{bday}</div>
+                            </div>
+
+                            <div className={s.petMetaItem}>
+                              <div className={s.petMetaLabel}>Sex</div>
+                              <div className={s.petMetaValue}>{sex}</div>
+                            </div>
+
+                            <div className={s.petMetaItem}>
+                              <div className={s.petMetaLabel}>Species</div>
+                              <div className={s.petMetaValue}>{species}</div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      <button
+                        className={s.petTrashBtn}
+                        type="button"
+                        aria-label="Delete pet"
+                        title="Delete"
+                        onClick={() => handleDeleteMyPet(p)}
+                      >
+                        <span className={s.petTrashIcon} aria-hidden="true">
+                          🗑
+                        </span>
+                      </button>
+                    </article>
+                  );
+                })}
+              </div>
 
               <button
                 className={s.logoutBtn}

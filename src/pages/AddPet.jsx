@@ -4,6 +4,10 @@ import s from "./AddPet.module.css";
 
 import addDog from "../assets/addDog.png";
 
+// ✅ NEW
+import { useAuth } from "../app/AuthContext";
+import { getUserStorageId } from "../utils/userStorage";
+
 const SPECIES = [
   "Dog",
   "Cat",
@@ -26,7 +30,6 @@ function fileToObjectUrl(file) {
 }
 
 function formatDateInputToDDMMYYYY(val) {
- 
   if (!val) return "";
   const [y, m, d] = val.split("-");
   if (!y || !m || !d) return "";
@@ -37,16 +40,19 @@ export default function AddPet() {
   const navigate = useNavigate();
   const fileRef = useRef(null);
 
-  
-  const [gender, setGender] = useState("female"); 
+  // ✅ NEW
+  const { user } = useAuth();
+  const userId = useMemo(() => getUserStorageId(user), [user]);
+
+  const [gender, setGender] = useState("female");
   const [photoUrl, setPhotoUrl] = useState("");
   const [photoFile, setPhotoFile] = useState(null);
-  const [preview, setPreview] = useState(""); 
+  const [preview, setPreview] = useState("");
 
   const [urlInput, setUrlInput] = useState("");
   const [title, setTitle] = useState("");
   const [petName, setPetName] = useState("");
-  const [birthDate, setBirthDate] = useState(""); 
+  const [birthDate, setBirthDate] = useState("");
   const [species, setSpecies] = useState("");
 
   const [err, setErr] = useState("");
@@ -87,7 +93,7 @@ export default function AddPet() {
   const onChangeUrl = (v) => {
     setUrlInput(v);
     setPhotoFile(null);
-    setPreview(v.trim()); 
+    setPreview(v.trim());
     setPhotoUrl(v.trim());
   };
 
@@ -97,7 +103,6 @@ export default function AddPet() {
 
     setErr("");
 
-    
     if (!title.trim()) return setErr("Title is required.");
     if (!petName.trim()) return setErr("Pet’s name is required.");
     if (!birthDate) return setErr("Birthday is required.");
@@ -106,24 +111,25 @@ export default function AddPet() {
     setSubmitting(true);
 
     try {
-      
       const payload = {
         id: crypto?.randomUUID?.() || String(Date.now()),
         gender,
         imgURL: photoUrl || preview || "",
         title: title.trim(),
         name: petName.trim(),
-        birthday: birthDate,
+        birthday: birthDate, // YYYY-MM-DD
         species,
         createdAt: new Date().toISOString(),
       };
 
-      const key = "petlove-my-pets";
+      // ✅ user’a özel key
+      const key = userId ? `petlove-my-pets:${userId}` : "petlove-my-pets";
+
       const prev = JSON.parse(localStorage.getItem(key) || "[]");
       const next = Array.isArray(prev) ? [payload, ...prev] : [payload];
       localStorage.setItem(key, JSON.stringify(next));
 
-     
+      // ✅ profile dinlesin
       window.dispatchEvent(new Event("petlove-my-pets-changed"));
 
       navigate("/profile");
@@ -138,14 +144,12 @@ export default function AddPet() {
   return (
     <div className={s.page}>
       <div className={s.wrap}>
-        {/* LEFT IMAGE  */}
         <div className={s.left}>
           <div className={s.heroCard}>
             <img className={s.heroImg} src={addDog} alt="Pet" />
           </div>
         </div>
 
-        {/* RIGHT FORM */}
         <div className={s.right}>
           <div className={s.card}>
             <h1 className={s.title}>
@@ -199,7 +203,6 @@ export default function AddPet() {
             </div>
 
             <form className={s.form} onSubmit={handleSubmit}>
-              {/* URL + upload */}
               <div className={s.row2}>
                 <input
                   className={s.input}
