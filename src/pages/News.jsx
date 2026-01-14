@@ -26,18 +26,18 @@ function normalizeNewsResponse(data) {
 
 function formatDate(value) {
   if (!value) return "";
-
-  return String(value);
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return String(value);
+  return d.toLocaleDateString();
 }
 
 export default function News() {
+  
   const [q, setQ] = useState("");
   const [page, setPage] = useState(1);
   const limit = 6;
-
   const [items, setItems] = useState([]);
   const [totalPages, setTotalPages] = useState(1);
-
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
@@ -48,7 +48,7 @@ export default function News() {
       setLoading(true);
       setError("");
       try {
-        const data = await fetchNews({ page, limit, search: q.trim() });
+        const data = await fetchNews({ page, limit });
         const normalized = normalizeNewsResponse(data);
 
         if (!alive) return;
@@ -67,11 +67,7 @@ export default function News() {
     return () => {
       alive = false;
     };
-  }, [page, q]);
-
-  useEffect(() => {
-    setPage(1);
-  }, [q]);
+  }, [page]);
 
   const canPrev = page > 1;
   const canNext = page < totalPages;
@@ -96,6 +92,16 @@ export default function News() {
 
     return out;
   }, [page, totalPages]);
+  const filteredItems = useMemo(() => {
+    const sQ = q.trim().toLowerCase();
+    if (!sQ) return items;
+
+    return items.filter((n) => {
+      const title = String(n?.title || "").toLowerCase();
+      const text = String(n?.text || n?.description || "").toLowerCase();
+      return title.includes(sQ) || text.includes(sQ);
+    });
+  }, [q, items]);
 
   return (
     <div className={s.page}>
@@ -121,13 +127,13 @@ export default function News() {
         <div className={s.loading}>Loading…</div>
       ) : (
         <div className={s.grid}>
-          {items.map((n) => {
-            const id =
-              n?._id || n?.id || n?.newsId || `${n?.title}-${Math.random()}`;
+          {filteredItems.map((n) => {
+            const id = n?._id || n?.id || `${n?.title}-${Math.random()}`;
             const title = n?.title || "Untitled";
             const desc = n?.text || n?.description || n?.desc || "";
             const date = formatDate(n?.date || n?.createdAt || n?.created_at);
-            const img = n?.imgUrl || n?.imageUrl || n?.url || n?.photo || "";
+            const img = n?.imgUrl || n?.imageUrl || n?.photo || "";
+            const href = n?.url || "";
 
             return (
               <article key={id} className={s.card}>
@@ -150,9 +156,20 @@ export default function News() {
 
                   <div className={s.cardFooter}>
                     <span className={s.date}>{date}</span>
-                    <button className={s.readMore} type="button">
-                      Read more
-                    </button>
+                    {href ? (
+                      <a
+                        className={s.readMore}
+                        href={href}
+                        target="_blank"
+                        rel="noreferrer"
+                      >
+                        Read more
+                      </a>
+                    ) : (
+                      <button className={s.readMore} type="button" disabled>
+                        Read more
+                      </button>
+                    )}
                   </div>
                 </div>
               </article>
@@ -167,6 +184,7 @@ export default function News() {
           onClick={() => canPrev && setPage((p) => p - 1)}
           disabled={!canPrev}
           aria-label="Previous page"
+          type="button"
         >
           ‹
         </button>
@@ -181,6 +199,7 @@ export default function News() {
               key={p}
               className={`${s.pageNum} ${p === page ? s.active : ""}`}
               onClick={() => setPage(p)}
+              type="button"
             >
               {p}
             </button>
@@ -192,6 +211,7 @@ export default function News() {
           onClick={() => canNext && setPage((p) => p + 1)}
           disabled={!canNext}
           aria-label="Next page"
+          type="button"
         >
           ›
         </button>
