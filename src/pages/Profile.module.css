@@ -100,71 +100,6 @@
   cursor: pointer;
 }
 
-.petsList {
-  display: grid;
-  gap: 10px;
-}
-
-.petCard {
-  display: grid;
-  grid-template-columns: 58px 1fr 34px;
-  gap: 10px;
-  align-items: center;
-  background: #fff;
-  border-radius: 16px;
-  border: 1px solid rgba(0, 0, 0, 0.06);
-  padding: 10px;
-}
-
-.petImg {
-  width: 58px;
-  height: 58px;
-  border-radius: 14px;
-  object-fit: cover;
-  background: rgba(0, 0, 0, 0.04);
-}
-
-.petTitle {
-  font-size: 12px;
-  font-weight: 800;
-  margin-bottom: 6px;
-}
-
-.petMeta {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 6px 10px;
-}
-
-.petMetaItem {
-  min-width: 0;
-}
-
-.metaLabel {
-  display: block;
-  font-size: 10px;
-  opacity: 0.55;
-  margin-bottom: 2px;
-}
-
-.metaValue {
-  display: block;
-  font-size: 11px;
-  opacity: 0.8;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.binBtn {
-  width: 34px;
-  height: 34px;
-  border-radius: 999px;
-  border: none;
-  background: #fff3df;
-  cursor: pointer;
-}
-
 .logoutBtn {
   margin-top: 8px;
   border: none;
@@ -532,43 +467,47 @@
   font-size: 14px;
   line-height: 1;
 }
+
 /* ---------- MY PETS (MOBILE FIRST) ---------- */
+/* (ÇAKIŞMALARI ÖNLEMEK İÇİN SADECE BU BLOK KALDI) */
 
 .petsList {
   display: grid;
-  gap: 16px;
+  gap: 14px;
   margin-top: 12px;
 }
 
 .petCard {
   position: relative;
   background: #fff;
-  border: 1px solid rgba(0, 0, 0, 0.06);
-  border-radius: 22px;
-  padding: 16px 16px;
-  box-shadow: 0 2px 14px rgba(0, 0, 0, 0.03);
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  border-radius: 20px;
+  padding: 14px 14px;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.04);
 }
 
 .petMain {
   display: flex;
-  gap: 14px;
+  gap: 12px;
   align-items: flex-start;
   min-width: 0;
-  padding-right: 52px; /* trash için yer */
+  padding-right: 54px; /* trash için yer */
 }
 
 .petAvatarWrap {
-  width: 72px;
-  height: 72px;
+  width: 64px;
+  height: 64px;
   border-radius: 999px;
   overflow: hidden;
-  flex: 0 0 72px;
-  background: rgba(255, 200, 50, 0.14);
+  flex: 0 0 64px;
+  background: rgba(247, 183, 49, 0.18);
+  display: grid;
+  place-items: center;
 }
 
 .petAvatar {
-  width: 80%;
-  height: 80%;
+  width: 100%;
+  height: 100%;
   object-fit: cover;
   display: block;
 }
@@ -578,14 +517,19 @@
   height: 100%;
   display: grid;
   place-items: center;
-  font-size: 26px;
-  opacity: 0.8;
+  font-size: 24px;
+  opacity: 0.85;
+}
+
+.petContent {
+  min-width: 0;
+  flex: 1;
 }
 
 .petTitle {
   margin: 0 0 10px 0;
   font-size: 16px;
-  font-weight: 700;
+  font-weight: 800;
   color: #111;
   line-height: 1.2;
 
@@ -594,11 +538,14 @@
   text-overflow: ellipsis;
 }
 
-/* screenshot gibi: Name / Birthday / Sex üstte, Species altta */
 .petMetaGrid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 10px 14px;
+}
+
+.petMetaItem {
+  min-width: 0;
 }
 
 .petMetaItem:last-child {
@@ -606,14 +553,15 @@
 }
 
 .petMetaLabel {
-  font-size: 6px;
-  color: rgba(0, 0, 0, 0.45);
-  margin-bottom: 4px;
+  font-size: 10px;
+  font-weight: 700;
+  color: rgba(0, 0, 0, 0.46);
+  margin-bottom: 3px;
 }
 
 .petMetaValue {
-  font-size: 6px;
-  font-weight: 500;
+  font-size: 12px;
+  font-weight: 600;
   color: rgba(0, 0, 0, 0.88);
 
   white-space: nowrap;
@@ -623,16 +571,16 @@
 
 .petTrashBtn {
   position: absolute;
-  right: 10px;
-  top: 10px;
-color: var(--accent);
-  width: 30px;
-  height: 30px;
+  right: 12px;
+  top: 12px;
+
+  width: 36px;
+  height: 36px;
   border-radius: 999px;
   border: none;
   cursor: pointer;
 
-  background: rgba(255, 200, 50, 0.2);
+  background: rgba(247, 183, 49, 0.2);
   display: grid;
   place-items: center;
 
@@ -641,12 +589,13 @@ color: var(--accent);
 
 .petTrashBtn:hover {
   transform: translateY(-1px);
-  background: rgba(255, 200, 50, 0.28);
+  background: rgba(247, 183, 49, 0.28);
 }
 
 .petTrashIcon {
   font-size: 16px;
   line-height: 1;
+  color: var(--accent);
 }
 
 /* Tablet */
@@ -659,6 +608,22 @@ color: var(--accent);
   }
   .modal {
     padding: 20px;
+  }
+
+  /* pets küçük iyileştirme */
+  .petsList {
+    gap: 16px;
+  }
+  .petCard {
+    padding: 16px 16px;
+  }
+  .petAvatarWrap {
+    width: 72px;
+    height: 72px;
+    flex-basis: 72px;
+  }
+  .petTitle {
+    font-size: 17px;
   }
 }
 
