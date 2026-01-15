@@ -16,9 +16,12 @@ function getBackendToken() {
 }
 
 export function AuthProvider({ children }) {
-  const [user, setUser] = useState(null);
+  const [user, setUser] = useState(null); 
   const [ready, setReady] = useState(false);
   const [profileTick, setProfileTick] = useState(0);
+
+
+  const [fbAuthed, setFbAuthed] = useState(false);
 
   useEffect(() => {
     let alive = true;
@@ -27,24 +30,28 @@ export function AuthProvider({ children }) {
       if (!alive) return;
       setReady(false);
 
-    
       const fbUser = auth.currentUser;
+
+    
       if (!fbUser) {
+        setFbAuthed(false);
         setUser(null);
         setReady(true);
         return;
       }
 
-    
+      
+      setFbAuthed(true);
+
+      
       const backendToken = getBackendToken();
       if (!backendToken) {
-       
         setUser(null);
         setReady(true);
         return;
       }
 
-    
+   
       try {
         const data = await fetchCurrentUser();
         const u = data?.user || data?.data?.user || data?.result || data;
@@ -67,12 +74,12 @@ export function AuthProvider({ children }) {
       boot();
     }
     window.addEventListener("petlove-auth-changed", onAuthChanged);
+
     function onProfileChanged() {
       setProfileTick((t) => t + 1);
     }
     window.addEventListener("petlove-profile-changed", onProfileChanged);
 
-  
     boot();
 
     return () => {
@@ -88,9 +95,9 @@ export function AuthProvider({ children }) {
       user,
       ready,
       profileTick,
-      isAuthed: Boolean(user),
+      isAuthed: fbAuthed,
     }),
-    [user, ready, profileTick]
+    [user, ready, profileTick, fbAuthed]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
