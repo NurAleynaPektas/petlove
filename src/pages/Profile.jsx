@@ -16,7 +16,6 @@ import s from "./Profile.module.css";
 
 const PROFILE_LS_KEY = "petlove-profile";
 
-/* ---------------- profile helpers ---------------- */
 function safeReadProfile() {
   try {
     const raw = localStorage.getItem(PROFILE_LS_KEY);
@@ -40,7 +39,6 @@ function fileToDataUrl(file) {
   });
 }
 
-/* ---------------- my pets LS helpers ---------------- */
 function myPetsKey(userId) {
   return userId ? `petlove-my-pets:${userId}` : "petlove-my-pets";
 }
@@ -89,7 +87,8 @@ function Stars({ value = 1 }) {
 }
 
 export default function Profile() {
-  const { user, ready } = useAuth();
+  
+  const { user, ready, isAuthed } = useAuth();
   const navigate = useNavigate();
 
   const userId = useMemo(() => getUserStorageId(user), [user]);
@@ -177,7 +176,7 @@ export default function Profile() {
 
   const syncPets = () => {
     const pets = readMyPets(userId);
-    // createdAt ISO string -> newest first
+ 
     pets.sort((a, b) =>
       String(b?.createdAt || "").localeCompare(String(a?.createdAt || ""))
     );
@@ -228,7 +227,7 @@ export default function Profile() {
 
   if (!ready) return null;
 
-  if (!user) {
+  if (!isAuthed) {
     return (
       <div className={s.page}>
         <div className={s.centerCard}>

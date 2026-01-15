@@ -20,19 +20,21 @@ export function AuthProvider({ children }) {
   const [ready, setReady] = useState(false);
   const [profileTick, setProfileTick] = useState(0);
 
-
+ 
   const [fbAuthed, setFbAuthed] = useState(false);
+
+  const [authChecked, setAuthChecked] = useState(false);
 
   useEffect(() => {
     let alive = true;
 
-    async function boot() {
+    async function boot(fbUserParam) {
       if (!alive) return;
       setReady(false);
 
-      const fbUser = auth.currentUser;
+      const fbUser = fbUserParam ?? auth.currentUser;
 
-    
+      
       if (!fbUser) {
         setFbAuthed(false);
         setUser(null);
@@ -43,7 +45,6 @@ export function AuthProvider({ children }) {
       
       setFbAuthed(true);
 
-      
       const backendToken = getBackendToken();
       if (!backendToken) {
         setUser(null);
@@ -51,14 +52,15 @@ export function AuthProvider({ children }) {
         return;
       }
 
-   
+     
       try {
         const data = await fetchCurrentUser();
         const u = data?.user || data?.data?.user || data?.result || data;
         if (!alive) return;
         setUser(u || null);
-      } catch (e) {
+      } catch {
         if (!alive) return;
+        
         setUser(null);
       } finally {
         if (!alive) return;
@@ -66,12 +68,16 @@ export function AuthProvider({ children }) {
       }
     }
 
-    const unsub = onAuthStateChanged(auth, () => {
-      boot();
+   
+    const unsub = onAuthStateChanged(auth, (fbUser) => {
+      if (!alive) return;
+      setAuthChecked(true);
+      boot(fbUser);
     });
 
     function onAuthChanged() {
-      boot();
+      
+      boot(auth.currentUser);
     }
     window.addEventListener("petlove-auth-changed", onAuthChanged);
 
@@ -80,7 +86,6 @@ export function AuthProvider({ children }) {
     }
     window.addEventListener("petlove-profile-changed", onProfileChanged);
 
-    boot();
 
     return () => {
       alive = false;
@@ -93,11 +98,11 @@ export function AuthProvider({ children }) {
   const value = useMemo(
     () => ({
       user,
-      ready,
+      ready: authChecked && ready,
       profileTick,
-      isAuthed: fbAuthed,
+      isAuthed: fbAuthed, 
     }),
-    [user, ready, profileTick, fbAuthed]
+    [user, ready, profileTick, fbAuthed, authChecked]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

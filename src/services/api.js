@@ -32,7 +32,12 @@ async function parseErrorMessage(res) {
 async function request(path, { method = "GET", params = {}, body } = {}) {
   const url = buildUrl(path, params);
 
-  const headers = {};
+  
+  const headers = {
+    "Cache-Control": "no-cache",
+    Pragma: "no-cache",
+  };
+
   if (body !== undefined) headers["Content-Type"] = "application/json";
 
   const token = getBackendToken();
@@ -42,6 +47,7 @@ async function request(path, { method = "GET", params = {}, body } = {}) {
     method,
     headers,
     body: body !== undefined ? JSON.stringify(body) : undefined,
+    cache: "no-store", 
   });
 
   if (!res.ok) {
@@ -63,12 +69,16 @@ async function request(path, { method = "GET", params = {}, body } = {}) {
 
 export const apiGet = (path, params = {}) =>
   request(path, { method: "GET", params });
+
 export const apiPost = (path, body = undefined, params = {}) =>
   request(path, { method: "POST", params, body });
+
 export const apiDelete = (path, params = {}) =>
   request(path, { method: "DELETE", params });
+
 export const apiPatch = (path, body = undefined, params = {}) =>
   request(path, { method: "PATCH", params, body });
+
 export function setToken(token) {
   try {
     if (!token) localStorage.removeItem(TOKEN_KEY);
