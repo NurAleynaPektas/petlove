@@ -4,7 +4,7 @@ import s from "./AddPet.module.css";
 
 import addDog from "../assets/addDog.png";
 
-// ✅ NEW
+
 import { useAuth } from "../app/AuthContext";
 import { getUserStorageId } from "../utils/userStorage";
 
@@ -36,11 +36,30 @@ function formatDateInputToDDMMYYYY(val) {
   return `${d}.${m}.${y}`;
 }
 
+async function uploadToLocalServer(file) {
+  const form = new FormData();
+  form.append("file", file);
+
+  const res = await fetch("http://localhost:4000/api/upload", {
+    method: "POST",
+    body: form,
+  });
+
+  if (!res.ok) {
+    const text = await res.text().catch(() => "");
+    throw new Error(text || "Upload failed");
+  }
+
+  const data = await res.json().catch(() => ({}));
+  if (!data?.url) throw new Error("Upload did not return url");
+  return data.url;
+}
+
 export default function AddPet() {
   const navigate = useNavigate();
   const fileRef = useRef(null);
 
-  // ✅ NEW
+
   const { user } = useAuth();
   const userId = useMemo(() => getUserStorageId(user), [user]);
 
@@ -83,18 +102,26 @@ export default function AddPet() {
     }
 
     const objUrl = fileToObjectUrl(f);
+
+    
     setPhotoFile(f);
     setPreview(objUrl);
+
+   
     setPhotoUrl("");
     setUrlInput("");
+
     e.target.value = "";
   };
 
   const onChangeUrl = (v) => {
+    const next = v.trim();
     setUrlInput(v);
     setPhotoFile(null);
-    setPreview(v.trim());
-    setPhotoUrl(v.trim());
+
+ 
+    setPreview(next);
+    setPhotoUrl(next);
   };
 
   const handleSubmit = async (e) => {
@@ -107,30 +134,45 @@ export default function AddPet() {
     if (!petName.trim()) return setErr("Pet’s name is required.");
     if (!birthDate) return setErr("Birthday is required.");
     if (!species) return setErr("Type of pet is required.");
+    if (!photoFile && !photoUrl.trim()) {
+      return setErr("Please upload a photo or enter an image URL.");
+    }
 
     setSubmitting(true);
 
     try {
+     
+      let finalImgUrl = photoUrl.trim();
+
+      if (photoFile) {
+        finalImgUrl = await uploadToLocalServer(photoFile);
+      }
+
       const payload = {
         id: crypto?.randomUUID?.() || String(Date.now()),
         gender,
-        imgURL: photoUrl || preview || "",
+        imgURL: finalImgUrl || "",
         title: title.trim(),
         name: petName.trim(),
-        birthday: birthDate, // YYYY-MM-DD
+        birthday: birthDate, 
         species,
         createdAt: new Date().toISOString(),
       };
 
-      // ✅ user’a özel key
       const key = userId ? `petlove-my-pets:${userId}` : "petlove-my-pets";
 
       const prev = JSON.parse(localStorage.getItem(key) || "[]");
       const next = Array.isArray(prev) ? [payload, ...prev] : [payload];
       localStorage.setItem(key, JSON.stringify(next));
 
-      // ✅ profile dinlesin
+    
       window.dispatchEvent(new Event("petlove-my-pets-changed"));
+
+    
+      try {
+        if (preview && preview.startsWith("blob:"))
+          URL.revokeObjectURL(preview);
+      } catch {}
 
       navigate("/profile");
     } catch (e2) {
@@ -290,6 +332,8 @@ export default function AddPet() {
                 </button>
               </div>
             </form>
+
+           
           </div>
         </div>
       </div>
