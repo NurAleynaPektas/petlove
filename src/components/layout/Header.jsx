@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { NavLink } from "react-router-dom";
 import { useAuth } from "../../app/AuthContext";
 import { backendSignout } from "../../services/auth";
@@ -18,9 +18,10 @@ function safeReadProfile() {
 
 export default function Header() {
   const [open, setOpen] = useState(false);
+  const [logoutOpen, setLogoutOpen] = useState(false); // ✅ logout confirm modal
   const { user, ready, profileTick } = useAuth();
 
-  const close = () => setOpen(false);
+  const closeMenu = () => setOpen(false);
   const isAuthed = Boolean(user);
 
   const avatarSrc = useMemo(() => {
@@ -33,24 +34,41 @@ export default function Header() {
     );
   }, [profileTick, user]);
 
+  // ✅ ESC ile modal kapansın
+  useEffect(() => {
+    if (!logoutOpen) return;
+    const onKey = (e) => {
+      if (e.key === "Escape") setLogoutOpen(false);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [logoutOpen]);
+
   if (!ready) return null;
 
-  const handleLogout = async () => {
+  // ✅ Asıl logout işlemi (Yes ile çağıracağız)
+  const doLogout = async () => {
     try {
       await backendSignout();
       localStorage.removeItem("petlove-profile");
       window.dispatchEvent(new Event("petlove-profile-changed"));
-      close();
     } catch (err) {
       console.error("Logout error:", err);
-      close();
+    } finally {
+      setLogoutOpen(false);
+      closeMenu();
     }
+  };
+
+  // ✅ butona basınca sadece modal aç
+  const handleLogoutClick = () => {
+    setLogoutOpen(true);
   };
 
   return (
     <header className={s.header}>
       <div className={s.inner}>
-        <NavLink to="/home" className={s.logo} onClick={close}>
+        <NavLink to="/home" className={s.logo} onClick={closeMenu}>
           pet💛ve
         </NavLink>
 
@@ -100,7 +118,7 @@ export default function Header() {
             </div>
           ) : (
             <div className={s.userRow}>
-              <NavLink to="/profile" className={s.userPill} onClick={close}>
+              <NavLink to="/profile" className={s.userPill} onClick={closeMenu}>
                 <img
                   key={avatarSrc}
                   className={s.avatar}
@@ -115,7 +133,7 @@ export default function Header() {
               <button
                 type="button"
                 className={s.logoutPill}
-                onClick={handleLogout}
+                onClick={handleLogoutClick} // ✅ modal aç
               >
                 Log out
               </button>
@@ -133,9 +151,13 @@ export default function Header() {
       </div>
 
       {open && (
-        <div className={s.overlay} onClick={close}>
+        <div className={s.overlay} onClick={closeMenu}>
           <div className={s.menu} onClick={(e) => e.stopPropagation()}>
-            <button className={s.close} aria-label="Close menu" onClick={close}>
+            <button
+              className={s.close}
+              aria-label="Close menu"
+              onClick={closeMenu}
+            >
               ✕
             </button>
 
@@ -145,7 +167,7 @@ export default function Header() {
                 className={({ isActive }) =>
                   isActive ? s.menuActive : s.menuLink
                 }
-                onClick={close}
+                onClick={closeMenu}
               >
                 News
               </NavLink>
@@ -155,7 +177,7 @@ export default function Header() {
                 className={({ isActive }) =>
                   isActive ? s.menuActive : s.menuLink
                 }
-                onClick={close}
+                onClick={closeMenu}
               >
                 Find Pet
               </NavLink>
@@ -165,7 +187,7 @@ export default function Header() {
                 className={({ isActive }) =>
                   isActive ? s.menuActive : s.menuLink
                 }
-                onClick={close}
+                onClick={closeMenu}
               >
                 Our Friends
               </NavLink>
@@ -180,7 +202,7 @@ export default function Header() {
                       isActive ? s.menuActive : ""
                     }`
                   }
-                  onClick={close}
+                  onClick={closeMenu}
                 >
                   LOG IN
                 </NavLink>
@@ -192,7 +214,7 @@ export default function Header() {
                       isActive ? s.menuActive : ""
                     }`
                   }
-                  onClick={close}
+                  onClick={closeMenu}
                 >
                   REGISTRATION
                 </NavLink>
@@ -202,12 +224,54 @@ export default function Header() {
                 <button
                   type="button"
                   className={s.menuLogout}
-                  onClick={handleLogout}
+                  onClick={handleLogoutClick} // ✅ mobile menüde de modal aç
                 >
                   LOG OUT
                 </button>
               </div>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* ✅ LOGOUT CONFIRM MODAL */}
+      {logoutOpen && (
+        <div
+          className={s.logoutOverlay}
+          role="dialog"
+          aria-modal="true"
+          aria-label="Logout confirmation"
+          onClick={() => setLogoutOpen(false)}
+        >
+          <div className={s.logoutModal} onClick={(e) => e.stopPropagation()}>
+            <button
+              type="button"
+              className={s.logoutClose}
+              aria-label="Close"
+              onClick={() => setLogoutOpen(false)}
+            >
+              ✕
+            </button>
+
+            <div className={s.logoutIconWrap} aria-hidden="true">
+              <div className={s.logoutIcon}>🐈</div>
+            </div>
+
+            <h3 className={s.logoutTitle}>Already leaving?</h3>
+
+            <div className={s.logoutActions}>
+              <button type="button" className={s.logoutYes} onClick={doLogout}>
+                Yes
+              </button>
+
+              <button
+                type="button"
+                className={s.logoutCancel}
+                onClick={() => setLogoutOpen(false)}
+              >
+                Cancel
+              </button>
+            </div>
           </div>
         </div>
       )}
