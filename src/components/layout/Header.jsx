@@ -115,6 +115,13 @@ export default function Header() {
             </div>
           ) : (
             <div className={s.userRow}>
+              <button
+                type="button"
+                className={s.logoutPill}
+                onClick={handleLogoutClick}
+              >
+                LOG OUT
+              </button>
               <NavLink to="/profile" className={s.userPill} onClick={closeMenu}>
                 <img
                   key={avatarSrc}
@@ -126,14 +133,6 @@ export default function Header() {
                   {user?.name || user?.displayName || "User"}
                 </span>
               </NavLink>
-
-              <button
-                type="button"
-                className={s.logoutPill}
-                onClick={handleLogoutClick}
-              >
-                Log out
-              </button>
             </div>
           )}
 
