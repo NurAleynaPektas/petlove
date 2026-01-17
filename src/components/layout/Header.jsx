@@ -18,7 +18,7 @@ function safeReadProfile() {
 
 export default function Header() {
   const [open, setOpen] = useState(false);
-  const [logoutOpen, setLogoutOpen] = useState(false); // ✅ logout confirm modal
+  const [logoutOpen, setLogoutOpen] = useState(false); 
   const { user, ready, profileTick } = useAuth();
 
   const closeMenu = () => setOpen(false);
@@ -34,7 +34,6 @@ export default function Header() {
     );
   }, [profileTick, user]);
 
-  // ✅ ESC ile modal kapansın
   useEffect(() => {
     if (!logoutOpen) return;
     const onKey = (e) => {
@@ -46,7 +45,6 @@ export default function Header() {
 
   if (!ready) return null;
 
-  // ✅ Asıl logout işlemi (Yes ile çağıracağız)
   const doLogout = async () => {
     try {
       await backendSignout();
@@ -60,7 +58,6 @@ export default function Header() {
     }
   };
 
-  // ✅ butona basınca sadece modal aç
   const handleLogoutClick = () => {
     setLogoutOpen(true);
   };
@@ -133,11 +130,31 @@ export default function Header() {
               <button
                 type="button"
                 className={s.logoutPill}
-                onClick={handleLogoutClick} // ✅ modal aç
+                onClick={handleLogoutClick}
               >
                 Log out
               </button>
             </div>
+          )}
+
+          {/*  MOBİLDE BURGER YANINDA PROFİL */}
+          {isAuthed && (
+            <NavLink
+              to="/profile"
+              className={s.mobileUserPill}
+              onClick={closeMenu}
+              aria-label="Open profile"
+            >
+              <img
+                key={avatarSrc}
+                className={s.avatar}
+                src={avatarSrc}
+                alt="User avatar"
+              />
+              <span className={s.mobileUserName}>
+                {user?.name || user?.displayName || "User"}
+              </span>
+            </NavLink>
           )}
 
           <button
@@ -198,9 +215,7 @@ export default function Header() {
                 <NavLink
                   to="/login"
                   className={({ isActive }) =>
-                    `${s.menuLink} ${s.loginBtn} ${
-                      isActive ? s.menuActive : ""
-                    }`
+                    `${s.menuLink} ${s.loginBtn} ${isActive ? s.menuActive : ""}`
                   }
                   onClick={closeMenu}
                 >
@@ -224,7 +239,7 @@ export default function Header() {
                 <button
                   type="button"
                   className={s.menuLogout}
-                  onClick={handleLogoutClick} // ✅ mobile menüde de modal aç
+                  onClick={handleLogoutClick}
                 >
                   LOG OUT
                 </button>
@@ -234,7 +249,7 @@ export default function Header() {
         </div>
       )}
 
-      {/* ✅ LOGOUT CONFIRM MODAL */}
+      {/*  LOGOUT CONFIRM MODAL */}
       {logoutOpen && (
         <div
           className={s.logoutOverlay}

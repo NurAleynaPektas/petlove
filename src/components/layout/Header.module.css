@@ -132,6 +132,31 @@
   line-height: 1;
 }
 
+.mobileUserPill {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  text-decoration: none;
+  padding: 6px 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(38, 38, 38, 0.12);
+  background: #fff;
+  color: var(--text);
+  max-width: 55vw;
+}
+
+.mobileUserName {
+  font-size: 14px;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.logoutPill {
+  display: none;
+}
+
 .overlay {
   position: fixed;
   inset: 0;
@@ -149,8 +174,8 @@
   padding: 16px;
   display: flex;
   flex-direction: column;
- 
 }
+
 .close {
   position: absolute;
   right: 30px;
@@ -194,14 +219,17 @@
   align-items: center;
   width: 100px;
 }
+
 .registerBtn {
   width: 150px;
   background: #fff;
   color: var(--accent);
 }
-.loginBtn{
+
+.loginBtn {
   width: 150px;
 }
+
 .menuActive {
   border: 2px solid rgba(250, 247, 247, 0.712);
   font-weight: 700;
@@ -238,6 +266,7 @@
   background: #fff;
   color: var(--accent);
 }
+
 .logoutOverlay {
   position: fixed;
   inset: 0;
@@ -252,11 +281,10 @@
 .logoutModal {
   width: min(300px, 150vw);
   background: #fff;
-  border-radius: 12px; 
+  border-radius: 12px;
   padding: 28px 24px 24px;
   position: relative;
 }
-
 
 .logoutClose {
   position: absolute;
@@ -281,16 +309,15 @@
 }
 
 .logoutIcon {
-   width: 56px;
+  width: 56px;
   height: 56px;
   border-radius: 50%;
   display: grid;
   place-items: center;
-  background: #fef3e2;             
-  font-size: 26px;                 
+  background: #fef3e2;
+  font-size: 26px;
   line-height: 1;
 }
-
 
 .logoutTitle {
   margin: 18px 0 20px;
@@ -336,35 +363,51 @@
   background: #ededed;
 }
 
-/* TABLET*/
+/* TABLET */
 @media (min-width: 768px) {
   .authRow {
     display: flex;
   }
+
   .userRow {
     display: flex;
   }
-  .menuAuth{
+
+  .menuAuth {
     display: flex;
     flex-direction: row;
   }
- .logoutModal {
+
+  .mobileUserPill {
+    display: none;
+  }
+
+  .logoutPill {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .logoutModal {
     border-radius: 20px;
     padding: 24px 18px 18px;
   }
+
   .logoutTitle {
     font-size: 20px;
   }
+
   .logoutActions {
     gap: 10px;
   }
+
   .logoutYes,
   .logoutCancel {
     width: 140px;
   }
 }
 
-/* DESKTOP*/
+/* DESKTOP */
 @media (min-width: 1024px) {
   .desktopNav {
     display: flex;
