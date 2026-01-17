@@ -295,6 +295,8 @@
   padding: 18px;
   border: 1px solid rgba(0, 0, 0, 0.06);
   box-shadow: 0 22px 60px rgba(0, 0, 0, 0.2);
+  max-height: min(82vh, 720px);
+  overflow: auto;
 }
 
 .modalClose {
@@ -400,7 +402,6 @@
   min-width: 160px;
 }
 
-/* STARS */
 .stars {
   display: inline-flex;
   align-items: center;
@@ -468,9 +469,7 @@
   line-height: 1;
 }
 
-/* ---------- MY PETS (MOBILE FIRST) ---------- */
-/* (ÇAKIŞMALARI ÖNLEMEK İÇİN SADECE BU BLOK KALDI) */
-
+/* MY PETS */
 .petsList {
   display: grid;
   gap: 14px;
@@ -491,7 +490,7 @@
   gap: 12px;
   align-items: flex-start;
   min-width: 0;
-  padding-right: 54px; /* trash için yer */
+  padding-right: 54px;
 }
 
 .petAvatarWrap {
@@ -532,7 +531,6 @@
   font-weight: 800;
   color: #111;
   line-height: 1.2;
-
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -563,7 +561,6 @@
   font-size: 12px;
   font-weight: 600;
   color: rgba(0, 0, 0, 0.88);
-
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -573,17 +570,14 @@
   position: absolute;
   right: 12px;
   top: 12px;
-
   width: 36px;
   height: 36px;
   border-radius: 999px;
   border: none;
   cursor: pointer;
-
   background: rgba(247, 183, 49, 0.2);
   display: grid;
   place-items: center;
-
   transition: transform 150ms ease, background 150ms ease;
 }
 
@@ -598,19 +592,164 @@
   color: var(--accent);
 }
 
+/* NOTICE DETAIL MODAL */
+.detailModal {
+  text-align: center;
+  padding: 10px 6px 4px;
+}
+
+.detailImgWrap {
+  position: relative;
+  width: 96px;
+  height: 96px;
+  border-radius: 999px;
+  overflow: hidden;
+  margin: 0 auto 10px;
+  background: rgba(0, 0, 0, 0.04);
+}
+
+.detailImg {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.detailImgFallback {
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.04);
+}
+
+.detailBadge {
+  position: absolute;
+  top: 5px;
+  left: 5px;
+  z-index: 2;
+  font-size: 10px;
+  font-weight: 800;
+  line-height: 1;
+  padding: 5px 9px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.85);
+  color: rgba(247, 183, 49, 1);
+  box-shadow: 0 8px 18px rgba(0, 0, 0, 0.08);
+  backdrop-filter: blur(6px);
+}
+
+.detailTitle {
+  margin: 6px 0 4px;
+  font-size: 18px;
+  font-weight: 900;
+}
+
+.starsRow {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  margin: 6px 0 12px;
+}
+
+.detailInfoGrid {
+ display: flex;
+ flex-direction: row;
+align-items: center;
+justify-content: center;
+gap: 20px;
+}
+
+.detailInfoItem {
+  min-width: 0;
+}
+
+.infoLabel {
+  display: block;
+  font-size: 10px;
+  font-weight: 600;
+  opacity: 0.55;
+  margin-bottom: 2px;
+}
+
+.infoValue {
+  display: block;
+  font-size: 12px;
+  font-weight: 500;
+  opacity: 0.92;
+  max-width: 140px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.starIcon {
+  font-size: 14px;
+  line-height: 1;
+}
+
+.starCount {
+  font-size: 12px;
+  font-weight: 900;
+  opacity: 0.85;
+  margin-left: 4px;
+}
+
+.detailDesc {
+  
+  font-size: 12px;
+  opacity: 0.75;
+  line-height: 1.35;
+}
+
+.detailPrice {
+  font-weight:700;
+  font-size: 15px;
+  margin: 10px 0 16px;
+}
+
+.detailBtns {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  align-items: center;
+  margin-top: 4px;
+}
+
+.btnPrimary {
+  border: none;
+  background: #f7b731;
+  color: #fff;
+  font-weight: 900;
+  font-size: 12px;
+  padding: 12px 14px;
+  border-radius: 999px;
+  cursor: pointer;
+}
+
+.btnGhost {
+  border: 1px solid rgba(0, 0, 0, 0.12);
+  background: #fff;
+  font-weight: 900;
+  font-size: 12px;
+  padding: 12px 14px;
+  border-radius: 999px;
+  cursor: pointer;
+}
+
+.btnHeart {
+  margin-left: 6px;
+  font-size: 14px;
+  line-height: 1;
+}
+
 /* Tablet */
 @media (min-width: 768px) {
-  .layout {
-    grid-template-columns: 1fr;
-  }
   .grid {
     grid-template-columns: repeat(2, 1fr);
   }
   .modal {
     padding: 20px;
   }
-
-  /* pets küçük iyileştirme */
   .petsList {
     gap: 16px;
   }

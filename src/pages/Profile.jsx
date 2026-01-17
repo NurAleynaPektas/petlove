@@ -12,6 +12,7 @@ import {
   writeViewed,
   migrateLegacyToUser,
 } from "../utils/userStorage";
+import { fetchNoticeById } from "../services/notices";
 import s from "./Profile.module.css";
 
 const PROFILE_LS_KEY = "petlove-profile";
@@ -68,6 +69,51 @@ function toDDMMYYYY(val) {
   return String(val);
 }
 
+function pickFirstString(...vals) {
+  for (const v of vals) {
+    if (typeof v === "string" && v.trim()) return v.trim();
+  }
+  return "";
+}
+
+function toStars(val) {
+  const n = Number(val);
+  const safe = Number.isFinite(n) ? n : 1;
+  return Math.max(1, Math.min(5, Math.round(safe)));
+}
+
+function getNoticeId(it) {
+  const raw =
+    it?._id || it?.id || it?.noticeId || it?._id?.$oid || it?._id?._id;
+
+  if (typeof raw === "string" || typeof raw === "number") return String(raw);
+
+  if (raw && typeof raw === "object") {
+    try {
+      return JSON.stringify(raw);
+    } catch {
+      return null;
+    }
+  }
+  return null;
+}
+
+function upsertById(list, item) {
+  const id = item?.id;
+  if (!id) return list;
+  const idx = list.findIndex((x) => String(x?.id) === String(id));
+  if (idx >= 0) {
+    const copy = list.slice();
+    copy[idx] = { ...copy[idx], ...item, ts: Date.now() };
+    return copy;
+  }
+  return [{ ...item, ts: Date.now() }, ...list];
+}
+
+function removeById(list, id) {
+  return list.filter((x) => String(x?.id) !== String(id));
+}
+
 function Stars({ value = 1 }) {
   const n = Math.max(1, Math.min(5, Number(value) || 1));
   return (
@@ -87,7 +133,6 @@ function Stars({ value = 1 }) {
 }
 
 export default function Profile() {
-  
   const { user, ready, isAuthed } = useAuth();
   const navigate = useNavigate();
 
@@ -118,8 +163,10 @@ export default function Profile() {
   const [favorites, setFavorites] = useState([]);
   const [viewed, setViewed] = useState([]);
 
-  // ✅ NEW
   const [myPets, setMyPets] = useState([]);
+
+  const [activeNotice, setActiveNotice] = useState(null);
+  const [showNoticeModal, setShowNoticeModal] = useState(false);
 
   const emptyText = useMemo(() => {
     if (tab === "favorites") {
@@ -176,7 +223,7 @@ export default function Profile() {
 
   const syncPets = () => {
     const pets = readMyPets(userId);
- 
+
     pets.sort((a, b) =>
       String(b?.createdAt || "").localeCompare(String(a?.createdAt || ""))
     );
@@ -217,9 +264,17 @@ export default function Profile() {
     };
   }, [ready, userId]);
 
+  function closeNoticeModal() {
+    setShowNoticeModal(false);
+    setActiveNotice(null);
+  }
+
   useEffect(() => {
     function onKeyDown(e) {
-      if (e.key === "Escape") setEditOpen(false);
+      if (e.key === "Escape") {
+        setEditOpen(false);
+        closeNoticeModal();
+      }
     }
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
@@ -353,8 +408,25 @@ export default function Profile() {
     writeViewed(userId, next);
   }
 
-  function handleLearnMoreFromProfile() {
-    navigate("/notices");
+  async function handleLearnMoreFromProfileCard(card) {
+    if (!isAuthed) {
+      navigate("/login");
+      return;
+    }
+
+    setActiveNotice(card?.raw || card);
+    setShowNoticeModal(true);
+
+    const id = getNoticeId(card?.raw || card) || String(card?.id || "");
+    if (!id) return;
+
+    try {
+      const detail = await fetchNoticeById(id);
+      const full = detail?.result || detail?.data || detail;
+      if (full) setActiveNotice(full);
+    } catch (err) {
+      console.log("Profile modal detail fetch failed:", err);
+    }
   }
 
   function handleDeleteMyPet(pet) {
@@ -411,7 +483,7 @@ export default function Profile() {
                 </button>
               </div>
 
-              {/* ✅ MY PETS (MOBILE LAYOUT) */}
+              {/* MY PETS */}
               <div className={s.petsList}>
                 {myPets.map((p) => {
                   const img = p?.imgURL || p?.imgUrl || p?.img || "";
@@ -422,8 +494,8 @@ export default function Profile() {
                     p?.gender === "female"
                       ? "Female"
                       : p?.gender === "male"
-                      ? "Male"
-                      : "Unknown";
+                        ? "Male"
+                        : "Unknown";
                   const species = p?.species ? String(p.species) : "—";
 
                   return (
@@ -550,7 +622,7 @@ export default function Profile() {
                         <button
                           className={s.learnBtn}
                           type="button"
-                          onClick={handleLearnMoreFromProfile}
+                          onClick={() => handleLearnMoreFromProfileCard(it)}
                         >
                           Learn more
                         </button>
@@ -573,6 +645,25 @@ export default function Profile() {
         </main>
       </div>
 
+      {/*  NOTICE MODAL */}
+      {showNoticeModal && activeNotice && (
+        <div className={s.modalOverlay} onMouseDown={closeNoticeModal}>
+          <div className={s.modal} onMouseDown={(e) => e.stopPropagation()}>
+            <button
+              className={s.modalClose}
+              onClick={closeNoticeModal}
+              aria-label="Close"
+              type="button"
+            >
+              ×
+            </button>
+
+            <ProfileNoticeDetailModal it={activeNotice} />
+          </div>
+        </div>
+      )}
+
+      {/* EDIT MODAL */}
       {editOpen && (
         <div className={s.modalOverlay} onMouseDown={() => setEditOpen(false)}>
           <div className={s.modal} onMouseDown={(e) => e.stopPropagation()}>
@@ -663,6 +754,83 @@ export default function Profile() {
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+/* Notice Detail Modal (Profile)*/
+
+function ProfileNoticeDetailModal({ it }) {
+  const title = it?.title || it?.name || "Pet";
+  const img =
+    it?.imgURL || it?.imgUrl || it?.imageUrl || it?.photo || it?.img || "";
+  const desc =
+    pickFirstString(it?.comment, it?.desc, it?.raw?.comment, it?.raw?.desc) ||
+    "No description";
+
+  const badgeText = it?.category || it?.raw?.category || "Pet";
+  const stars = toStars(
+    it?.rating ?? it?.popularity ?? it?.stars ?? it?.raw?.stars ?? 1
+  );
+
+  const name = it?.name || it?.petName || it?.raw?.name || "—";
+  const bday =
+    toDDMMYYYY(it?.birthday || it?.birthDate || it?.raw?.birthday) || "—";
+  const sex = it?.sex || it?.gender || it?.raw?.sex || it?.raw?.gender || "—";
+  const species = it?.species || it?.raw?.species || "—";
+  const city =
+    it?.location || it?.city || it?.raw?.location || it?.raw?.city || "—";
+
+  const price = it?.price ?? it?.cost ?? it?.raw?.price ?? null;
+
+  return (
+    <div className={s.detailModal}>
+      <div className={s.detailImgWrap}>
+        <div className={s.detailBadge}>{badgeText}</div>
+        {img ? (
+          <img className={s.detailImg} src={img} alt={title} />
+        ) : (
+          <div className={s.detailImgFallback} />
+        )}
+      </div>
+
+      <h3 className={s.detailTitle}>{title}</h3>
+
+      <div className={s.starsRow} aria-label={`Rating ${stars}`}>
+        {Array.from({ length: 5 }).map((_, i) => (
+          <span
+            key={i}
+            className={`${s.starIcon} ${i < stars ? s.starOn : s.starOff}`}
+            aria-hidden="true"
+          >
+            ★
+          </span>
+        ))}
+        <span className={s.starCount}>{stars}</span>
+      </div>
+
+      <div className={s.detailInfoGrid}>
+        <Info label="Name" value={name} />
+        <Info label="Birthday" value={bday} />
+        <Info label="Sex" value={sex} />
+        <Info label="Species" value={species} />
+        <Info label="City" value={city} />
+      </div>
+
+      <p className={s.detailDesc}>{desc}</p>
+
+      {price !== null && price !== undefined && (
+        <div className={s.detailPrice}>${price}</div>
+      )}
+    </div>
+  );
+}
+
+function Info({ label, value }) {
+  return (
+    <div className={s.detailInfoItem}>
+      <span className={s.infoLabel}>{label}</span>
+      <span className={s.infoValue}>{String(value ?? "—")}</span>
     </div>
   );
 }
