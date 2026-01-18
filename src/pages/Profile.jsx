@@ -12,10 +12,36 @@ import {
   writeViewed,
   migrateLegacyToUser,
 } from "../utils/userStorage";
-import { fetchNoticeById } from "../services/notices";
+import { fetchNoticeById, removeFavoriteNotice } from "../services/notices";
 import s from "./Profile.module.css";
 
+import iziToast from "izitoast";
+import "izitoast/dist/css/iziToast.min.css";
+
 const PROFILE_LS_KEY = "petlove-profile";
+
+function toastInfo(message) {
+  iziToast.info({
+    title: "Info",
+    message: String(message || ""),
+    position: "topRight",
+    timeout: 2200,
+    close: true,
+    drag: true,
+    pauseOnHover: true,
+  });
+}
+function toastError(message) {
+  iziToast.error({
+    title: "Error",
+    message: String(message || ""),
+    position: "topRight",
+    timeout: 2600,
+    close: true,
+    drag: true,
+    pauseOnHover: true,
+  });
+}
 
 function safeReadProfile() {
   try {
@@ -98,22 +124,6 @@ function getNoticeId(it) {
   return null;
 }
 
-function upsertById(list, item) {
-  const id = item?.id;
-  if (!id) return list;
-  const idx = list.findIndex((x) => String(x?.id) === String(id));
-  if (idx >= 0) {
-    const copy = list.slice();
-    copy[idx] = { ...copy[idx], ...item, ts: Date.now() };
-    return copy;
-  }
-  return [{ ...item, ts: Date.now() }, ...list];
-}
-
-function removeById(list, id) {
-  return list.filter((x) => String(x?.id) !== String(id));
-}
-
 function Stars({ value = 1 }) {
   const n = Math.max(1, Math.min(5, Number(value) || 1));
   return (
@@ -162,7 +172,6 @@ export default function Profile() {
 
   const [favorites, setFavorites] = useState([]);
   const [viewed, setViewed] = useState([]);
-
   const [myPets, setMyPets] = useState([]);
 
   const [activeNotice, setActiveNotice] = useState(null);
@@ -225,7 +234,7 @@ export default function Profile() {
     const pets = readMyPets(userId);
 
     pets.sort((a, b) =>
-      String(b?.createdAt || "").localeCompare(String(a?.createdAt || ""))
+      String(b?.createdAt || "").localeCompare(String(a?.createdAt || "")),
     );
     setMyPets(pets);
   };
@@ -316,7 +325,7 @@ export default function Profile() {
       navigate("/home");
     } catch (e) {
       console.error("Logout error:", e);
-      alert("Logout failed.");
+      toastError("Logout failed.");
     }
   }
 
@@ -383,29 +392,52 @@ export default function Profile() {
       setAvatarUrl(editAvatarUrl || "");
 
       setEditOpen(false);
+      toastInfo("Profile updated");
     } catch (err) {
       console.log("PROFILE SAVE ERROR:", err);
       setSaveErr("Save failed. Please try again.");
+      toastError("Save failed");
     } finally {
       setSaving(false);
     }
   }
 
-  function handleRemoveFromList(card) {
-    const id = String(card?.id || "");
+  async function handleRemoveFromList(card) {
+    const id = String(card?.id || getNoticeId(card?.raw || card) || "");
     if (!id) return;
     if (!userId) return;
 
-    if (tab === "favorites") {
-      const next = favorites.filter((x) => String(x?.id) !== id);
-      setFavorites(next);
-      writeFavs(userId, next);
+    if (tab !== "favorites") {
+      const next = viewed.filter((x) => String(x?.id) !== id);
+      setViewed(next);
+      writeViewed(userId, next);
+      window.dispatchEvent(new Event("petlove-viewed-changed"));
       return;
     }
 
-    const next = viewed.filter((x) => String(x?.id) !== id);
-    setViewed(next);
-    writeViewed(userId, next);
+    const prevFavorites = favorites;
+    const next = prevFavorites.filter((x) => String(x?.id) !== id);
+    setFavorites(next);
+    writeFavs(userId, next);
+    window.dispatchEvent(new Event("petlove-favs-changed"));
+
+    try {
+      await removeFavoriteNotice(id);
+      toastInfo("Removed from favorites");
+    } catch (e) {
+      const msg = String(e?.message || "").toLowerCase();
+
+      if (msg.includes("404") || msg.includes("not found")) {
+        toastInfo("Already removed");
+        return;
+      }
+
+      setFavorites(prevFavorites);
+      writeFavs(userId, prevFavorites);
+      window.dispatchEvent(new Event("petlove-favs-changed"));
+
+      toastError(e?.message || "Remove failed");
+    }
   }
 
   async function handleLearnMoreFromProfileCard(card) {
@@ -437,6 +469,7 @@ export default function Profile() {
     setMyPets(next);
     writeMyPets(userId, next);
     window.dispatchEvent(new Event("petlove-my-pets-changed"));
+    toastInfo("Pet removed");
   }
 
   return (
@@ -645,7 +678,7 @@ export default function Profile() {
         </main>
       </div>
 
-      {/*  NOTICE MODAL */}
+      {/* NOTICE MODAL */}
       {showNoticeModal && activeNotice && (
         <div className={s.modalOverlay} onMouseDown={closeNoticeModal}>
           <div className={s.modal} onMouseDown={(e) => e.stopPropagation()}>
@@ -758,8 +791,7 @@ export default function Profile() {
   );
 }
 
-/* Notice Detail Modal (Profile)*/
-
+/* Notice Detail Modal (Profile)  */
 function ProfileNoticeDetailModal({ it }) {
   const title = it?.title || it?.name || "Pet";
   const img =
@@ -770,7 +802,7 @@ function ProfileNoticeDetailModal({ it }) {
 
   const badgeText = it?.category || it?.raw?.category || "Pet";
   const stars = toStars(
-    it?.rating ?? it?.popularity ?? it?.stars ?? it?.raw?.stars ?? 1
+    it?.rating ?? it?.popularity ?? it?.stars ?? it?.raw?.stars ?? 1,
   );
 
   const name = it?.name || it?.petName || it?.raw?.name || "—";

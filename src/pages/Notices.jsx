@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../app/AuthContext";
 import {
@@ -21,7 +21,45 @@ import {
 } from "../utils/userStorage";
 import s from "./Notices.module.css";
 
-/*helpers */
+import iziToast from "izitoast";
+import "izitoast/dist/css/iziToast.min.css";
+
+/* toast helpers  */
+function toastSuccess(message) {
+  iziToast.success({
+    title: "OK",
+    message: String(message || ""),
+    position: "topRight",
+    timeout: 2200,
+    close: true,
+    drag: true,
+    pauseOnHover: true,
+  });
+}
+function toastInfo(message) {
+  iziToast.info({
+    title: "Info",
+    message: String(message || ""),
+    position: "topRight",
+    timeout: 2200,
+    close: true,
+    drag: true,
+    pauseOnHover: true,
+  });
+}
+function toastError(message) {
+  iziToast.error({
+    title: "Error",
+    message: String(message || ""),
+    position: "topRight",
+    timeout: 2600,
+    close: true,
+    drag: true,
+    pauseOnHover: true,
+  });
+}
+
+/* helpers  */
 function normalizeArray(data) {
   if (Array.isArray(data)) return data;
   if (Array.isArray(data?.result)) return data.result;
@@ -37,7 +75,7 @@ function normalizePaged(data) {
   const items = normalizeArray(data) || [];
   const page = Number(data?.page || data?.result?.page || 1);
   const totalPages = Number(
-    data?.totalPages || data?.result?.totalPages || data?.pages || 1
+    data?.totalPages || data?.result?.totalPages || data?.pages || 1,
   );
   return { items, page, totalPages: totalPages || 1 };
 }
@@ -107,16 +145,7 @@ function toCardPayload(it) {
   const price = it?.price ?? it?.cost ?? null;
   const stars = toStars(it?.rating ?? it?.popularity ?? 1);
 
-  return {
-    id,
-    title,
-    img,
-    desc,
-    price,
-    stars,
-    raw: it,
-    ts: Date.now(),
-  };
+  return { id, title, img, desc, price, stars, raw: it, ts: Date.now() };
 }
 
 function upsertById(list, item) {
@@ -135,14 +164,22 @@ function removeById(list, id) {
   return list.filter((x) => String(x?.id) !== String(id));
 }
 
-/* component  */
+function resolvePhoneFromNotice(it) {
+  const u = it?.user;
+  const userObj = u && typeof u === "object" ? u : null;
+  const phone = pickFirstString(userObj?.phone, it?.phone, it?.contactPhone);
+  const cleaned = phone ? String(phone).replace(/\s+/g, "") : "";
+  return { phone: cleaned, has: Boolean(cleaned) };
+}
+
+/* component */
 export default function Notices() {
   const navigate = useNavigate();
   const { user, ready, isAuthed } = useAuth();
-
   const userId = useMemo(() => getUserStorageId(user), [user]);
 
-  // login olduktan sonra
+  const favBusyRef = useRef(new Set()); 
+
   useEffect(() => {
     if (!ready) return;
     if (!user) return;
@@ -154,7 +191,7 @@ export default function Notices() {
   const [category, setCategory] = useState("");
   const [sex, setSex] = useState("");
   const [species, setSpecies] = useState("");
-  const [locationId, setLocationId] = useState(""); // ✅ ID
+  const [locationId, setLocationId] = useState("");
   const [sort, setSort] = useState("popular");
 
   // pagination
@@ -165,7 +202,7 @@ export default function Notices() {
   const [categories, setCategories] = useState([]);
   const [sexes, setSexes] = useState([]);
   const [speciesList, setSpeciesList] = useState([]);
-  const [cities, setCities] = useState([]); // ✅ [{id,label}]
+  const [cities, setCities] = useState([]);
 
   // notices
   const [items, setItems] = useState([]);
@@ -216,7 +253,6 @@ export default function Notices() {
 
         if (c4.status === "fulfilled") {
           const raw = normalizeArray(c4.value);
-
           const mapped = raw
             .map((x) => {
               if (!x || typeof x !== "object") return null;
@@ -235,11 +271,10 @@ export default function Notices() {
             seen.add(c.id);
             uniq.push(c);
           }
-
           setCities(uniq);
         }
       } catch {
-        // ignore
+        
       }
     })();
 
@@ -299,7 +334,7 @@ export default function Notices() {
     };
   }, [page, search, category, sex, species, locationId, sort, userId, perPage]);
 
-  /* favorites*/
+  /*  favorites */
   async function toggleFavorite(item) {
     const id = getNoticeId(item);
     if (!id) return;
@@ -309,15 +344,19 @@ export default function Notices() {
       return;
     }
 
-    const wasFav = Boolean(item?.favorite || item?.isFavorite);
+    if (favBusyRef.current.has(id)) return;
+    favBusyRef.current.add(id);
 
-    // optimistic UI
+    const currentFavs = readFavs(userId);
+    const existsInLS = currentFavs.some((x) => String(x?.id) === String(id));
+    const wasFav = existsInLS || Boolean(item?.favorite || item?.isFavorite);
+
     setItems((prev) =>
       prev.map((x) => {
         const xid = getNoticeId(x);
         if (xid !== id) return x;
         return { ...x, favorite: !wasFav, isFavorite: !wasFav };
-      })
+      }),
     );
 
     setActiveNotice((prev) => {
@@ -327,18 +366,21 @@ export default function Notices() {
       return { ...prev, favorite: !wasFav, isFavorite: !wasFav };
     });
 
-    // local storage
     const payload = toCardPayload(item);
-    const favsPrev = readFavs(userId);
+    const favsPrev = currentFavs;
     const favsNext = wasFav
       ? removeById(favsPrev, id)
       : upsertById(favsPrev, payload);
-
     writeFavs(userId, favsNext);
 
     try {
-      if (wasFav) await removeFavoriteNotice(id);
-      else await addFavoriteNotice(id);
+      if (wasFav) {
+        await removeFavoriteNotice(id);
+        toastInfo("Removed from favorites");
+      } else {
+        await addFavoriteNotice(id);
+        toastSuccess("Added to favorites "); 
+      }
     } catch (e) {
       const msg = String(e?.message || "").toLowerCase();
 
@@ -349,20 +391,21 @@ export default function Notices() {
           msg.includes("already") ||
           msg.includes("exist"))
       ) {
+        toastInfo("Already in favorites ");
         return;
       }
 
       if (wasFav && (msg.includes("404") || msg.includes("not found"))) {
+        toastInfo("Already removed");
         return;
       }
 
-      // rollback
       setItems((prev) =>
         prev.map((x) => {
           const xid = getNoticeId(x);
           if (xid !== id) return x;
           return { ...x, favorite: wasFav, isFavorite: wasFav };
-        })
+        }),
       );
 
       setActiveNotice((prev) => {
@@ -373,14 +416,15 @@ export default function Notices() {
       });
 
       writeFavs(userId, favsPrev);
-      alert(e?.message || "Favorite işlemi başarısız.");
+      toastError(e?.message || "Favorite işlemi başarısız.");
+    } finally {
+      favBusyRef.current.delete(id);
     }
   }
 
   /* viewed */
   function pushViewed(it) {
     if (!userId) return;
-
     const payload = toCardPayload(it);
     if (!payload.id) return;
 
@@ -396,7 +440,7 @@ export default function Notices() {
     return arr;
   }, [totalPages]);
 
-  /* modal controls */
+  /*  modal controls  */
   function closeModals() {
     setActiveNotice(null);
     setShowAuthModal(false);
@@ -417,18 +461,23 @@ export default function Notices() {
     }
 
     pushViewed(it);
-
-    // hemen aç
     setActiveNotice(it);
 
-    // contact vs için detay çekmeyi dene
     const id = getNoticeId(it);
     if (!id) return;
 
     try {
       const detail = await fetchNoticeById(id);
       const full = detail?.result || detail?.data || detail;
-      if (full) setActiveNotice(full);
+
+      if (full) {
+        setActiveNotice((prev) => ({
+          ...(prev || {}),
+          ...(full || {}),
+          favorite: prev?.favorite ?? full?.favorite,
+          isFavorite: prev?.isFavorite ?? full?.isFavorite,
+        }));
+      }
     } catch {
       // ignore
     }
@@ -445,18 +494,14 @@ export default function Notices() {
   }
 
   function onContact(it) {
-    const email = it?.user?.email || it?.email;
-    const phone = it?.user?.phone || it?.phone;
+    const { phone, has } = resolvePhoneFromNotice(it);
 
-    if (email) {
-      window.location.href = `mailto:${email}`;
+    if (!has) {
+      toastError("Phone number not available.");
       return;
     }
-    if (phone) {
-      window.location.href = `tel:${phone}`;
-      return;
-    }
-    alert("Contact info not available.");
+
+    window.location.href = `tel:${phone}`;
   }
 
   return (
@@ -517,7 +562,6 @@ export default function Notices() {
             ))}
           </select>
 
-          {/* ✅ locationId ile çalışır */}
           <select
             className={s.select}
             value={locationId}
@@ -561,7 +605,6 @@ export default function Notices() {
               it?.imgURL || it?.imgUrl || it?.imageUrl || it?.photo || "";
             const price = it?.price ?? it?.cost;
             const fav = Boolean(it?.favorite || it?.isFavorite);
-
             const stars = toStars(it?.rating ?? it?.popularity ?? 1);
 
             return (
@@ -743,7 +786,7 @@ export default function Notices() {
   );
 }
 
-/* detail modal */
+/* detail modal  */
 function NoticeDetailModal({ it, onToggleFav, onContact }) {
   const title = it?.title || it?.name || "Pet";
   const img = it?.imgURL || it?.imgUrl || it?.imageUrl || it?.photo || "";
@@ -801,6 +844,7 @@ function NoticeDetailModal({ it, onToggleFav, onContact }) {
         <button className={s.btnPrimary} onClick={onToggleFav} type="button">
           {fav ? "Added ❤️" : "Add to "} <span className={s.btnHeart}>♡</span>
         </button>
+
         <button className={s.btnGhost} onClick={onContact} type="button">
           Contact
         </button>
