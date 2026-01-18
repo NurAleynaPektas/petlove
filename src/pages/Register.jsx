@@ -47,7 +47,6 @@ function safeWriteProfile(obj) {
   window.dispatchEvent(new Event("petlove-profile-changed"));
 }
 
-/* izi helpers */
 function toastSuccess(message) {
   iziToast.success({
     title: "OK",
@@ -95,19 +94,18 @@ export default function Register() {
     const phone = String(values.phone || "").trim();
 
     try {
-      // 1) Firebase register
+      
       const cred = await createUserWithEmailAndPassword(auth, email, password);
 
       try {
         await updateProfile(cred.user, { displayName: name });
       } catch {
-        // ignore
+        
       }
 
-      // 2) Backend signup
       await backendSignup({ name, email, password });
 
-      // 3) phone'u local profile cache'ine yaz
+     
       const prev = safeReadProfile();
       safeWriteProfile({ ...prev, phone: phone || "" });
 
