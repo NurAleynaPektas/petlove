@@ -14,6 +14,14 @@ function extractToken(data) {
   );
 }
 
+function notifyProfileChanged() {
+  try {
+    window.dispatchEvent(new Event("petlove-profile-changed"));
+  } catch {
+    
+  }
+}
+
 export async function backendSignup({ name, email, password }) {
   const data = await apiPost("/users/signup", { name, email, password });
   const token = extractToken(data);
@@ -36,8 +44,10 @@ export async function backendSignout() {
   try {
     await apiPost("/users/signout");
   } catch {
+   
   } finally {
     clearToken(); 
+    notifyProfileChanged(); 
     await signOut(auth);
   }
 }

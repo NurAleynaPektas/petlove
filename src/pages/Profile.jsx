@@ -143,7 +143,8 @@ function Stars({ value = 1 }) {
 }
 
 export default function Profile() {
-  const { user, ready, isAuthed } = useAuth();
+  // ✅ setUser + profileTick aldık (CSS etkilenmez)
+  const { user, setUser, ready, isAuthed, profileTick } = useAuth();
   const navigate = useNavigate();
 
   const userId = useMemo(() => getUserStorageId(user), [user]);
@@ -195,6 +196,7 @@ export default function Profile() {
     );
   }, [tab]);
 
+  // ✅ profileTick eklendi: LS değişince inputlar da anında güncellensin
   useEffect(() => {
     if (!ready) return;
 
@@ -211,7 +213,7 @@ export default function Profile() {
     setEmail(nextEmail);
     setPhone(nextPhone);
     setAvatarUrl(lsAvatar || user?.photoURL || "");
-  }, [ready, user]);
+  }, [ready, user, profileTick]);
 
   const syncLists = () => {
     if (!userId) {
@@ -376,20 +378,36 @@ export default function Profile() {
     try {
       const nextName = String(editName || "").trim() || "User";
       const nextPhone = String(editPhone || "").trim() || "+380";
+      const nextAvatar = editAvatarUrl || "";
 
       const prev = safeReadProfile();
       safeWriteProfile({
         ...prev,
         name: nextName,
         phone: nextPhone,
-        avatar: editAvatarUrl || "",
+        avatar: nextAvatar,
       });
+
+      // ✅ EN KRİTİK: context user'ı da güncelle (Header + UI eskiye dönmesin)
+      if (typeof setUser === "function") {
+        setUser((prevUser) => {
+          if (!prevUser || typeof prevUser !== "object") return prevUser;
+          return {
+            ...prevUser,
+            name: nextName,
+            displayName: nextName,
+            phone: nextPhone,
+            avatar: nextAvatar,
+            photoURL: nextAvatar,
+          };
+        });
+      }
 
       window.dispatchEvent(new Event("petlove-profile-changed"));
 
       setName(nextName);
       setPhone(nextPhone);
-      setAvatarUrl(editAvatarUrl || "");
+      setAvatarUrl(nextAvatar);
 
       setEditOpen(false);
       toastInfo("Profile updated");

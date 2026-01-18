@@ -18,11 +18,10 @@ function safeReadProfile() {
 
 export default function Header() {
   const [open, setOpen] = useState(false);
-  const [logoutOpen, setLogoutOpen] = useState(false); 
-  const { user, ready, profileTick } = useAuth();
+  const [logoutOpen, setLogoutOpen] = useState(false);
+  const { user, ready, profileTick, isAuthed } = useAuth();
 
   const closeMenu = () => setOpen(false);
-  const isAuthed = Boolean(user);
 
   const avatarSrc = useMemo(() => {
     const ls = safeReadProfile();
@@ -32,6 +31,12 @@ export default function Header() {
       user?.photoURL ||
       "https://i.pravatar.cc/80?img=3"
     );
+  }, [profileTick, user]);
+
+  const displayName = useMemo(() => {
+    const ls = safeReadProfile();
+    const lsName = typeof ls.name === "string" ? ls.name.trim() : "";
+    return lsName || user?.name || user?.displayName || "User";
   }, [profileTick, user]);
 
   useEffect(() => {
@@ -48,8 +53,6 @@ export default function Header() {
   const doLogout = async () => {
     try {
       await backendSignout();
-      localStorage.removeItem("petlove-profile");
-      window.dispatchEvent(new Event("petlove-profile-changed"));
     } catch (err) {
       console.error("Logout error:", err);
     } finally {
@@ -122,6 +125,7 @@ export default function Header() {
               >
                 LOG OUT
               </button>
+
               <NavLink to="/profile" className={s.userPill} onClick={closeMenu}>
                 <img
                   key={avatarSrc}
@@ -129,14 +133,12 @@ export default function Header() {
                   src={avatarSrc}
                   alt="User avatar"
                 />
-                <span className={s.userName}>
-                  {user?.name || user?.displayName || "User"}
-                </span>
+                <span className={s.userName}>{displayName}</span>
               </NavLink>
             </div>
           )}
 
-          {/*  MOBİLDE BURGER YANINDA PROFİL */}
+          {/* MOBİLDE BURGER YANINDA PROFİL */}
           {isAuthed && (
             <NavLink
               to="/profile"
@@ -150,9 +152,7 @@ export default function Header() {
                 src={avatarSrc}
                 alt="User avatar"
               />
-              <span className={s.mobileUserName}>
-                {user?.name || user?.displayName || "User"}
-              </span>
+              <span className={s.mobileUserName}>{displayName}</span>
             </NavLink>
           )}
 
@@ -248,7 +248,7 @@ export default function Header() {
         </div>
       )}
 
-      {/*  LOGOUT CONFIRM MODAL */}
+      {/* LOGOUT CONFIRM MODAL */}
       {logoutOpen && (
         <div
           className={s.logoutOverlay}

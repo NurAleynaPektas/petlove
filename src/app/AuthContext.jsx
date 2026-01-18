@@ -6,6 +6,7 @@ import { fetchCurrentUser } from "../services/auth";
 const AuthContext = createContext(null);
 
 const TOKEN_KEY = "petlove-token";
+const PROFILE_LS_KEY = "petlove-profile";
 
 function getBackendToken() {
   try {
@@ -15,14 +16,45 @@ function getBackendToken() {
   }
 }
 
+function safeReadProfile() {
+  try {
+    const raw = localStorage.getItem(PROFILE_LS_KEY);
+    const obj = raw ? JSON.parse(raw) : {};
+    return obj && typeof obj === "object" ? obj : {};
+  } catch {
+    return {};
+  }
+}
+
+
+function mergeUserWithLocalProfile(backendUser) {
+  const u = backendUser && typeof backendUser === "object" ? backendUser : null;
+  if (!u) return null;
+
+  const ls = safeReadProfile();
+
+  const lsName = typeof ls.name === "string" ? ls.name.trim() : "";
+  const lsPhone = typeof ls.phone === "string" ? ls.phone.trim() : "";
+  const lsAvatar = typeof ls.avatar === "string" ? ls.avatar.trim() : "";
+
+  return {
+    ...u,
+   
+    name: lsName || u.name || u.displayName || u.fullName || u.username,
+    displayName:
+      lsName || u.displayName || u.name || u.fullName || u.username || "User",
+    phone: lsPhone || u.phone,
+    avatar: lsAvatar || u.avatar,
+    photoURL: lsAvatar || u.photoURL,
+  };
+}
+
 export function AuthProvider({ children }) {
-  const [user, setUser] = useState(null); 
-  const [ready, setReady] = useState(false);
+  const [user, setUser] = useState(null);
+  const [readyInternal, setReadyInternal] = useState(false);
   const [profileTick, setProfileTick] = useState(0);
 
- 
   const [fbAuthed, setFbAuthed] = useState(false);
-
   const [authChecked, setAuthChecked] = useState(false);
 
   useEffect(() => {
@@ -30,45 +62,42 @@ export function AuthProvider({ children }) {
 
     async function boot(fbUserParam) {
       if (!alive) return;
-      setReady(false);
+      setReadyInternal(false);
 
       const fbUser = fbUserParam ?? auth.currentUser;
 
-      
       if (!fbUser) {
         setFbAuthed(false);
         setUser(null);
-        setReady(true);
+        setReadyInternal(true);
         return;
       }
 
-      
       setFbAuthed(true);
 
       const backendToken = getBackendToken();
       if (!backendToken) {
         setUser(null);
-        setReady(true);
+        setReadyInternal(true);
         return;
       }
 
-     
       try {
         const data = await fetchCurrentUser();
         const u = data?.user || data?.data?.user || data?.result || data;
+
         if (!alive) return;
-        setUser(u || null);
-      } catch {
+
+        setUser(mergeUserWithLocalProfile(u || null));
+      } catch (e) {
         if (!alive) return;
-        
         setUser(null);
       } finally {
         if (!alive) return;
-        setReady(true);
+        setReadyInternal(true);
       }
     }
 
-   
     const unsub = onAuthStateChanged(auth, (fbUser) => {
       if (!alive) return;
       setAuthChecked(true);
@@ -76,33 +105,43 @@ export function AuthProvider({ children }) {
     });
 
     function onAuthChanged() {
-      
       boot(auth.currentUser);
     }
     window.addEventListener("petlove-auth-changed", onAuthChanged);
 
     function onProfileChanged() {
       setProfileTick((t) => t + 1);
+      setUser((prev) => (prev ? mergeUserWithLocalProfile(prev) : prev));
+
     }
     window.addEventListener("petlove-profile-changed", onProfileChanged);
 
+    function onStorage(e) {
+      if (e.key === PROFILE_LS_KEY) {
+        setProfileTick((t) => t + 1);
+        setUser((prev) => mergeUserWithLocalProfile(prev));
+      }
+    }
+    window.addEventListener("storage", onStorage);
 
     return () => {
       alive = false;
       unsub();
       window.removeEventListener("petlove-auth-changed", onAuthChanged);
       window.removeEventListener("petlove-profile-changed", onProfileChanged);
+      window.removeEventListener("storage", onStorage);
     };
   }, []);
 
   const value = useMemo(
     () => ({
       user,
-      ready: authChecked && ready,
+      setUser,
+      ready: authChecked && readyInternal,
       profileTick,
-      isAuthed: fbAuthed, 
+      isAuthed: fbAuthed,
     }),
-    [user, ready, profileTick, fbAuthed, authChecked]
+    [user, readyInternal, profileTick, fbAuthed, authChecked],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
