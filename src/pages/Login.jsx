@@ -1,7 +1,6 @@
 import { useState } from "react";
 import { useNavigate, NavLink } from "react-router-dom";
-import { useForm } from "react-hook-form";
-import { yupResolver } from "@hookform/resolvers/yup";
+import { Formik } from "formik";
 import * as yup from "yup";
 import { signInWithEmailAndPassword } from "firebase/auth";
 import { auth } from "../services/firebase";
@@ -26,60 +25,49 @@ export default function Login() {
   const navigate = useNavigate();
   const [serverError, setServerError] = useState("");
 
-  const {
-    register,
-    handleSubmit,
-    formState: { errors, isSubmitting },
-  } = useForm({
-    resolver: yupResolver(schema),
-    mode: "onSubmit",
-  });
+  const initialValues = {
+    email: "",
+    password: "",
+  };
 
- const onSubmit = async (values) => {
-   setServerError("");
+  async function handleLogin(values, helpers) {
+    setServerError("");
 
-   const email = values.email.trim();
-   const password = values.password;
+    const email = String(values.email || "").trim();
+    const password = String(values.password || "");
 
-   try {
-     
-     await signInWithEmailAndPassword(auth, email, password);
-     await backendSignin({ email, password });
+    try {
+      // Firebase auth
+      await signInWithEmailAndPassword(auth, email, password);
 
-     
-     navigate("/profile", { replace: true });
-   } catch (err) {
-     console.log("LOGIN ERROR:", err);
-     const msg = String(err?.message || "").toLowerCase();
+      // Backend auth (token vs)
+      await backendSignin({ email, password });
 
-     
-     if (msg.includes("user-not-found")) {
-       setServerError("Bu email ile kullanıcı bulunamadı.");
-       return;
-     }
-     if (msg.includes("wrong-password") || msg.includes("invalid-credential")) {
-       setServerError("Email veya şifre hatalı.");
-       return;
-     }
-     if (msg.includes("too-many-requests")) {
-       setServerError("Çok fazla deneme yapıldı. Biraz sonra tekrar deneyin.");
-       return;
-     }
+      navigate("/profile", { replace: true });
+    } catch (err) {
+      console.log("LOGIN ERROR:", err);
+      const msg = String(err?.message || "").toLowerCase();
 
-  
-     if (msg.includes("email or password invalid")) {
-       setServerError("Email veya şifre hatalı (backend).");
-       return;
-     }
-     if (msg.includes("unauthorized") || msg.includes("401")) {
-       setServerError("Giriş başarısız (401). Tekrar deneyin.");
-       return;
-     }
-
-     setServerError("Giriş başarısız. Lütfen tekrar deneyin.");
-   }
- };
-
+      if (msg.includes("user-not-found")) {
+        setServerError("Bu email ile kullanıcı bulunamadı.");
+      } else if (
+        msg.includes("wrong-password") ||
+        msg.includes("invalid-credential")
+      ) {
+        setServerError("Email veya şifre hatalı.");
+      } else if (msg.includes("too-many-requests")) {
+        setServerError("Çok fazla deneme yapıldı. Biraz sonra tekrar deneyin.");
+      } else if (msg.includes("email or password invalid")) {
+        setServerError("Email veya şifre hatalı (backend).");
+      } else if (msg.includes("unauthorized") || msg.includes("401")) {
+        setServerError("Giriş başarısız (401). Tekrar deneyin.");
+      } else {
+        setServerError("Giriş başarısız. Lütfen tekrar deneyin.");
+      }
+    } finally {
+      helpers.setSubmitting(false);
+    }
+  }
 
   return (
     <div className={s.page}>
@@ -111,41 +99,71 @@ export default function Login() {
             Welcome! Please enter your credentials to login to the platform:
           </p>
 
-          <form className={s.form} onSubmit={handleSubmit(onSubmit)} noValidate>
-            <label className={s.label}>
-              Email
-              <input
-                className={s.input}
-                type="email"
-                placeholder="Enter your email"
-                autoComplete="email"
-                {...register("email")}
-              />
-              {errors.email && (
-                <span className={s.fieldError}>{errors.email.message}</span>
-              )}
-            </label>
+          <Formik
+            initialValues={initialValues}
+            validationSchema={schema}
+            onSubmit={handleLogin}
+            validateOnBlur={true}
+            validateOnChange={false}
+          >
+            {({
+              values,
+              errors,
+              touched,
+              handleChange,
+              handleBlur,
+              handleSubmit,
+              isSubmitting,
+            }) => (
+              <form className={s.form} onSubmit={handleSubmit} noValidate>
+                <label className={s.label}>
+                  Email
+                  <input
+                    className={s.input}
+                    type="email"
+                    name="email"
+                    placeholder="Enter your email"
+                    autoComplete="email"
+                    value={values.email}
+                    onChange={(e) => {
+                      setServerError("");
+                      handleChange(e);
+                    }}
+                    onBlur={handleBlur}
+                  />
+                  {touched.email && errors.email && (
+                    <span className={s.fieldError}>{errors.email}</span>
+                  )}
+                </label>
 
-            <label className={s.label}>
-              Password
-              <input
-                className={s.input}
-                type="password"
-                placeholder="Enter your password"
-                autoComplete="current-password"
-                {...register("password")}
-              />
-              {errors.password && (
-                <span className={s.fieldError}>{errors.password.message}</span>
-              )}
-            </label>
+                <label className={s.label}>
+                  Password
+                  <input
+                    className={s.input}
+                    type="password"
+                    name="password"
+                    placeholder="Enter your password"
+                    autoComplete="current-password"
+                    value={values.password}
+                    onChange={(e) => {
+                      setServerError("");
+                      handleChange(e);
+                    }}
+                    onBlur={handleBlur}
+                  />
+                  {touched.password && errors.password && (
+                    <span className={s.fieldError}>{errors.password}</span>
+                  )}
+                </label>
 
-            {serverError && <p className={s.error}>{serverError}</p>}
+                {serverError && <p className={s.error}>{serverError}</p>}
 
-            <button className={s.btn} type="submit" disabled={isSubmitting}>
-              {isSubmitting ? "Logging in..." : "LOG IN"}
-            </button>
-          </form>
+                <button className={s.btn} type="submit" disabled={isSubmitting}>
+                  {isSubmitting ? "Logging in..." : "LOG IN"}
+                </button>
+              </form>
+            )}
+          </Formik>
 
           <p className={s.text}>
             Don’t have an account?{" "}
