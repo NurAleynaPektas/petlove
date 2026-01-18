@@ -6,7 +6,7 @@ import { signInWithEmailAndPassword } from "firebase/auth";
 import { auth } from "../services/firebase";
 import { backendSignin } from "../services/auth";
 import s from "./Login.module.css";
-import dogImg from "../assets/loginkopek.png";
+import dogImg from "../assets/loginKopek.png";
 
 const emailRegex = /^[\w-]+(\.[\w-]+)*@([\w-]+\.)+[a-zA-Z]{2,7}$/;
 
