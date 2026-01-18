@@ -1,13 +1,15 @@
 import { useState } from "react";
 import { useNavigate, NavLink } from "react-router-dom";
-import { useForm } from "react-hook-form";
-import { yupResolver } from "@hookform/resolvers/yup";
+import { Formik } from "formik";
 import * as yup from "yup";
 import { createUserWithEmailAndPassword, updateProfile } from "firebase/auth";
 import { auth } from "../services/firebase";
 import { backendSignup } from "../services/auth";
 import s from "./Register.module.css";
 import catImg from "../assets/loginKedi.png";
+
+import iziToast from "izitoast";
+import "izitoast/dist/css/iziToast.min.css";
 
 const emailRegex = /^[\w-]+(\.[\w-]+)*@([\w-]+\.)+[a-zA-Z]{2,7}$/;
 
@@ -45,6 +47,30 @@ function safeWriteProfile(obj) {
   window.dispatchEvent(new Event("petlove-profile-changed"));
 }
 
+/* izi helpers */
+function toastSuccess(message) {
+  iziToast.success({
+    title: "OK",
+    message: String(message || ""),
+    position: "topRight",
+    timeout: 2200,
+    close: true,
+    drag: true,
+    pauseOnHover: true,
+  });
+}
+function toastError(message) {
+  iziToast.error({
+    title: "Error",
+    message: String(message || ""),
+    position: "topRight",
+    timeout: 2800,
+    close: true,
+    drag: true,
+    pauseOnHover: true,
+  });
+}
+
 export default function Register() {
   const navigate = useNavigate();
   const [serverError, setServerError] = useState("");
@@ -52,22 +78,21 @@ export default function Register() {
   const [showPass, setShowPass] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
 
-  const {
-    register,
-    handleSubmit,
-    formState: { errors, isSubmitting },
-  } = useForm({
-    resolver: yupResolver(schema),
-    mode: "onSubmit",
-  });
+  const initialValues = {
+    name: "",
+    email: "",
+    phone: "",
+    password: "",
+    confirm: "",
+  };
 
-  const onSubmit = async (values) => {
+  async function handleRegister(values, helpers) {
     setServerError("");
 
-    const name = values.name.trim();
-    const email = values.email.trim();
-    const password = values.password;
-    const phone = values.phone.trim();
+    const name = String(values.name || "").trim();
+    const email = String(values.email || "").trim();
+    const password = String(values.password || "");
+    const phone = String(values.phone || "").trim();
 
     try {
       // 1) Firebase register
@@ -75,16 +100,18 @@ export default function Register() {
 
       try {
         await updateProfile(cred.user, { displayName: name });
-      } catch {}
+      } catch {
+        // ignore
+      }
 
-      // 2) Backend signup (token burada set edilecek)
+      // 2) Backend signup
       await backendSignup({ name, email, password });
 
       // 3) phone'u local profile cache'ine yaz
       const prev = safeReadProfile();
       safeWriteProfile({ ...prev, phone: phone || "" });
 
-      // 4) profile'a git
+      toastSuccess("Registration successful!");
       navigate("/profile", { replace: true });
     } catch (err) {
       console.log("REGISTER ERROR:", err);
@@ -92,18 +119,24 @@ export default function Register() {
 
       if (msg.includes("email-already-in-use")) {
         setServerError("Bu email zaten kullanılıyor.");
+        toastError("Bu email zaten kullanılıyor.");
       } else if (msg.includes("invalid-email")) {
         setServerError("Email formatı geçersiz.");
+        toastError("Email formatı geçersiz.");
       } else if (msg.includes("weak-password")) {
         setServerError("Şifre çok zayıf. En az 7 karakter olmalı.");
+        toastError("Şifre çok zayıf.");
       } else if (msg.includes("password field is required")) {
         setServerError("Backend signup şifre istiyor. Şifreyi kontrol et.");
+        toastError("Backend signup şifre istiyor.");
       } else {
         setServerError("Kayıt başarısız. Lütfen tekrar deneyin.");
+        toastError("Kayıt başarısız.");
       }
+    } finally {
+      helpers.setSubmitting(false);
     }
-  };
-
+  }
 
   return (
     <div className={s.page}>
@@ -132,96 +165,146 @@ export default function Register() {
           <h1 className={s.title}>Registration</h1>
           <p className={s.text}>Thank you for your interest in our platform.</p>
 
-          <form className={s.form} onSubmit={handleSubmit(onSubmit)} noValidate>
-            <label className={s.label}>
-              <input
-                className={s.input}
-                placeholder="Name"
-                autoComplete="name"
-                {...register("name")}
-              />
-              {errors.name && (
-                <span className={s.fieldError}>{errors.name.message}</span>
-              )}
-            </label>
+          <Formik
+            initialValues={initialValues}
+            validationSchema={schema}
+            onSubmit={handleRegister}
+            validateOnBlur={true}
+            validateOnChange={false}
+          >
+            {({
+              values,
+              errors,
+              touched,
+              handleChange,
+              handleBlur,
+              handleSubmit,
+              isSubmitting,
+            }) => (
+              <form className={s.form} onSubmit={handleSubmit} noValidate>
+                <label className={s.label}>
+                  <input
+                    className={s.input}
+                    name="name"
+                    placeholder="Name"
+                    autoComplete="name"
+                    value={values.name}
+                    onChange={(e) => {
+                      setServerError("");
+                      handleChange(e);
+                    }}
+                    onBlur={handleBlur}
+                  />
+                  {touched.name && errors.name && (
+                    <span className={s.fieldError}>{errors.name}</span>
+                  )}
+                </label>
 
-            <label className={s.label}>
-              <input
-                className={s.input}
-                type="email"
-                placeholder="Email"
-                autoComplete="email"
-                {...register("email")}
-              />
-              {errors.email && (
-                <span className={s.fieldError}>{errors.email.message}</span>
-              )}
-            </label>
+                <label className={s.label}>
+                  <input
+                    className={s.input}
+                    type="email"
+                    name="email"
+                    placeholder="Email"
+                    autoComplete="email"
+                    value={values.email}
+                    onChange={(e) => {
+                      setServerError("");
+                      handleChange(e);
+                    }}
+                    onBlur={handleBlur}
+                  />
+                  {touched.email && errors.email && (
+                    <span className={s.fieldError}>{errors.email}</span>
+                  )}
+                </label>
 
-            <label className={s.label}>
-              <div className={s.inputWrap}>
-                <input
-                  className={s.input}
-                  type={showPass ? "text" : "password"}
-                  placeholder="Password"
-                  autoComplete="new-password"
-                  {...register("password")}
-                />
-                <button
-                  type="button"
-                  className={s.eyeBtn}
-                  onClick={() => setShowPass((p) => !p)}
-                  aria-label={showPass ? "Hide password" : "Show password"}
-                >
-                  👁
+                <label className={s.label}>
+                  <div className={s.inputWrap}>
+                    <input
+                      className={s.input}
+                      type={showPass ? "text" : "password"}
+                      name="password"
+                      placeholder="Password"
+                      autoComplete="new-password"
+                      value={values.password}
+                      onChange={(e) => {
+                        setServerError("");
+                        handleChange(e);
+                      }}
+                      onBlur={handleBlur}
+                    />
+                    <button
+                      type="button"
+                      className={s.eyeBtn}
+                      onClick={() => setShowPass((p) => !p)}
+                      aria-label={showPass ? "Hide password" : "Show password"}
+                    >
+                      👁
+                    </button>
+                  </div>
+                  {touched.password && errors.password && (
+                    <span className={s.fieldError}>{errors.password}</span>
+                  )}
+                </label>
+
+                <label className={s.label}>
+                  <div className={s.inputWrap}>
+                    <input
+                      className={s.input}
+                      type={showConfirm ? "text" : "password"}
+                      name="confirm"
+                      placeholder="Confirm your password"
+                      autoComplete="new-password"
+                      value={values.confirm}
+                      onChange={(e) => {
+                        setServerError("");
+                        handleChange(e);
+                      }}
+                      onBlur={handleBlur}
+                    />
+                    <button
+                      type="button"
+                      className={s.eyeBtn}
+                      onClick={() => setShowConfirm((p) => !p)}
+                      aria-label={
+                        showConfirm ? "Hide password" : "Show password"
+                      }
+                    >
+                      👁
+                    </button>
+                  </div>
+                  {touched.confirm && errors.confirm && (
+                    <span className={s.fieldError}>{errors.confirm}</span>
+                  )}
+                </label>
+
+                <label className={s.label}>
+                  <input
+                    className={s.input}
+                    name="phone"
+                    placeholder="Phone"
+                    autoComplete="tel"
+                    value={values.phone}
+                    onChange={(e) => {
+                      setServerError("");
+                      handleChange(e);
+                    }}
+                    onBlur={handleBlur}
+                  />
+                  {touched.phone && errors.phone && (
+                    <span className={s.fieldError}>{errors.phone}</span>
+                  )}
+                </label>
+
+                {serverError && <p className={s.error}>{serverError}</p>}
+
+                <button className={s.btn} type="submit" disabled={isSubmitting}>
+                  {isSubmitting ? "Creating..." : "REGISTRATION"}
                 </button>
-              </div>
-              {errors.password && (
-                <span className={s.fieldError}>{errors.password.message}</span>
-              )}
-            </label>
-
-            <label className={s.label}>
-              <div className={s.inputWrap}>
-                <input
-                  className={s.input}
-                  type={showConfirm ? "text" : "password"}
-                  placeholder="Confirm your password"
-                  autoComplete="new-password"
-                  {...register("confirm")}
-                />
-                <button
-                  type="button"
-                  className={s.eyeBtn}
-                  onClick={() => setShowConfirm((p) => !p)}
-                  aria-label={showConfirm ? "Hide password" : "Show password"}
-                >
-                  👁
-                </button>
-              </div>
-              {errors.confirm && (
-                <span className={s.fieldError}>{errors.confirm.message}</span>
-              )}
-            </label>
-
-            <label className={s.label}>
-              <input
-                className={s.input}
-                placeholder="Phone"
-                autoComplete="tel"
-                {...register("phone")}
-              />
-              {errors.phone && (
-                <span className={s.fieldError}>{errors.phone.message}</span>
-              )}
-            </label>
-
-            {serverError && <p className={s.error}>{serverError}</p>}
-
-            <button className={s.btn} type="submit" disabled={isSubmitting}>
-              {isSubmitting ? "Creating..." : "REGISTRATION"}
-            </button>
-          </form>
+              </form>
+            )}
+          </Formik>
 
           <p className={s.bottomText}>
             Already have an account?{" "}
